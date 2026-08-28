@@ -7,6 +7,7 @@
 [![Issues][issues-shield]][issues-url]
 [![Discord][discord-shield]][discord-url]
 [![License][license-shield]][license-url]
+[![Ai][ai-shield]][ai-url]
 
 <!-- PROJECT LOGO -->
 <br />
@@ -142,3 +143,5 @@ Distributed under the All Rights Reserved License. See `LICENSE` for more inform
 [license-url]: https://github.com/ZelionGG/Disenchantum/blob/main/LICENSE
 [Lua]: https://img.shields.io/badge/lua-000000?style=for-the-badge&logo=lua&logoColor=white
 [Lua-url]: https://www.lua.org/
+[ai-shield]: https://img.shields.io/badge/AI-AI_Assisted-yellow?style=for-the-badge
+[ai-url]: https://www.aihonestybadge.com/
