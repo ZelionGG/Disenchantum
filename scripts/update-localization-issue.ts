@@ -34,7 +34,7 @@ interface GitHubIssueResponse {
 
 const DEFAULT_OWNER = "ZelionGG";
 const DEFAULT_REPO = "Disenchantum";
-const DEFAULT_ISSUE_NUMBER = 3;
+const DEFAULT_ISSUE_NUMBER = 1;
 const LOCALE_SYNC_START_MARKER = "<!-- locale-sync:start -->";
 const LOCALE_SYNC_END_MARKER = "<!-- locale-sync:end -->";
 const BADGE_STYLE = "for-the-badge";
