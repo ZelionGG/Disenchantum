@@ -33,7 +33,7 @@ interface GitHubIssueResponse {
 }
 
 const DEFAULT_OWNER = "ZelionGG";
-const DEFAULT_REPO = "KeystonePolaris";
+const DEFAULT_REPO = "Disenchantum";
 const DEFAULT_ISSUE_NUMBER = 3;
 const LOCALE_SYNC_START_MARKER = "<!-- locale-sync:start -->";
 const LOCALE_SYNC_END_MARKER = "<!-- locale-sync:end -->";
@@ -291,7 +291,7 @@ function requestGitHubIssue(
           Accept: "application/vnd.github+json",
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-          "User-Agent": "keystonepolaris-locale-issue-updater",
+          "User-Agent": "disenchantum-locale-issue-updater",
           ...(payload ? { "Content-Length": Buffer.byteLength(payload) } : {}),
         },
       },
