@@ -1,15 +1,15 @@
 local _, addon = ...
 
-addon.Changelog["1.0.0"] = {
-    version_string = "1.0.0",
+addon.Changelog["1.0"] = {
+    version_string = "1.0",
     release_date = "2026/08/28",
     header = {
         enUS = {
-            title = "Version 1.0.0 - Initial release",
+            title = "Version 1.0 - Initial release",
             text = "First Disenchantum release: queue bag items and disenchant them with one secure click per item.",
         },
         frFR = {
-            title = "Version 1.0.0",
+            title = "Version 1.0 - Sortie officielle",
             text = "Première version de Disenchantum : mettez des objets de sac en file et désenchantez-les d'un clic sécurisé par objet.",
         },
     },

@@ -1,3 +1,4 @@
-<Ui xmlns="http://www.blizzard.com/wow/ui/">
-    <Script file="1.0.0.lua"/>
+﻿<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- LIVE -->
+    <Script file='1.0.lua'/>
 </Ui>
