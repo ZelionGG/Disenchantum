@@ -1,0 +1,641 @@
+local _, addon = ...
+
+local Theme = {
+    colors = {
+        window = { 0.04, 0.04, 0.05, 0.98 },
+        titleBar = { 0.07, 0.06, 0.04, 0.98 },
+        sidebar = { 0.055, 0.055, 0.06, 0.96 },
+        workspace = { 0.05, 0.05, 0.055, 0.96 },
+        card = { 0.085, 0.085, 0.095, 0.94 },
+        cardSoft = { 0.075, 0.075, 0.085, 0.9 },
+        cardInset = { 0.06, 0.06, 0.07, 0.95 },
+        input = { 0.045, 0.045, 0.05, 0.98 },
+        border = { 0.2, 0.18, 0.15, 0.92 },
+        borderSoft = { 0.14, 0.13, 0.12, 0.85 },
+        borderMuted = { 0.11, 0.11, 0.12, 0.8 },
+        accent = { 0.92, 0.71, 0.24, 1 },
+        accentSoft = { 0.58, 0.42, 0.16, 0.95 },
+        accentDim = { 0.34, 0.26, 0.12, 0.92 },
+        success = { 0.26, 0.72, 0.44, 1 },
+        warning = { 0.9, 0.68, 0.26, 1 },
+        danger = { 0.78, 0.29, 0.27, 1 },
+        text = { 0.95, 0.93, 0.88, 1 },
+        textMuted = { 0.72, 0.7, 0.67, 1 },
+        textDim = { 0.5, 0.5, 0.52, 1 },
+        disabledButton = { 0.22, 0.22, 0.24, 0.96 },
+        disabledButtonBorder = { 0.38, 0.38, 0.4, 0.95 },
+        disabledButtonText = { 0.62, 0.62, 0.64, 1 },
+    },
+}
+
+addon.Theme = Theme
+
+function Theme.UnpackColor(color)
+    return color[1], color[2], color[3], color[4] or 1
+end
+
+function Theme.ApplySurface(frame, background, border)
+    frame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        tile = true,
+        tileSize = 8,
+        edgeSize = 1,
+        insets = { left = 1, right = 1, top = 1, bottom = 1 },
+    })
+    frame:SetBackdropColor(Theme.UnpackColor(background or Theme.colors.card))
+    frame:SetBackdropBorderColor(Theme.UnpackColor(border or Theme.colors.border))
+end
+
+function Theme.CreatePanel(parent, background, border)
+    local panel = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    Theme.ApplySurface(panel, background, border)
+    return panel
+end
+
+function Theme.SetFontColor(fontString, color)
+    fontString:SetTextColor(Theme.UnpackColor(color))
+end
+
+function Theme.CreateText(parent, text, variant)
+    local fontObject = "GameFontHighlight"
+    if variant == "title" then
+        fontObject = "GameFontNormalHuge"
+    elseif variant == "heading" then
+        fontObject = "GameFontNormalLarge"
+    elseif variant == "label" then
+        fontObject = "GameFontHighlightSmall"
+    elseif variant == "muted" then
+        fontObject = "GameFontDisable"
+    elseif variant == "mono" then
+        fontObject = "ChatFontNormal"
+    end
+
+    local label = parent:CreateFontString(nil, "ARTWORK", fontObject)
+    label:SetJustifyH("LEFT")
+    label:SetJustifyV("MIDDLE")
+    label:SetText(text or "")
+
+    if variant == "heading" then
+        Theme.SetFontColor(label, Theme.colors.accent)
+    elseif variant == "label" or variant == "muted" then
+        Theme.SetFontColor(label, Theme.colors.textMuted)
+    else
+        Theme.SetFontColor(label, Theme.colors.text)
+    end
+
+    return label
+end
+
+function Theme.CreateAccentLine(parent, width)
+    local texture = parent:CreateTexture(nil, "BORDER")
+    texture:SetColorTexture(Theme.UnpackColor(Theme.colors.accent))
+    texture:SetSize(width, 2)
+    return texture
+end
+
+function Theme.UpdateButtonColors(button)
+    local colors = Theme.colors
+    local variant = button.variant or "secondary"
+    local palette = {
+        primary = {
+            normal = { bg = colors.accentDim, border = colors.accentSoft, text = colors.text },
+            hover = { bg = colors.accentSoft, border = colors.accent, text = colors.text },
+            active = { bg = colors.accentSoft, border = colors.accent, text = colors.text },
+            disabled = { bg = colors.disabledButton, border = colors.disabledButtonBorder, text = colors.disabledButtonText },
+        },
+        secondary = {
+            normal = { bg = colors.cardInset, border = colors.borderSoft, text = colors.text },
+            hover = { bg = colors.cardSoft, border = colors.accentSoft, text = colors.text },
+            active = { bg = colors.cardSoft, border = colors.accent, text = colors.text },
+            disabled = { bg = colors.cardInset, border = colors.borderMuted, text = colors.textDim },
+        },
+        danger = {
+            normal = { bg = { 0.22, 0.08, 0.08, 0.95 }, border = { 0.42, 0.14, 0.14, 0.95 }, text = colors.text },
+            hover = { bg = { 0.32, 0.1, 0.1, 0.95 }, border = colors.danger, text = colors.text },
+            active = { bg = { 0.32, 0.1, 0.1, 0.95 }, border = colors.danger, text = colors.text },
+            disabled = { bg = colors.cardInset, border = colors.borderMuted, text = colors.textDim },
+        },
+        subtle = {
+            normal = { bg = colors.card, border = colors.borderMuted, text = colors.textMuted },
+            hover = { bg = colors.cardSoft, border = colors.borderSoft, text = colors.text },
+            active = { bg = colors.cardSoft, border = colors.accentSoft, text = colors.text },
+            disabled = { bg = colors.cardInset, border = colors.borderMuted, text = colors.textDim },
+        },
+    }
+
+    local state = palette[variant] or palette.secondary
+    local style
+    if button.visualEnabled == false or (button.IsEnabled and not button:IsEnabled()) then
+        style = state.disabled
+    elseif button.isSelected then
+        style = state.active
+    elseif button.isHovered then
+        style = state.hover
+    else
+        style = state.normal
+    end
+
+    Theme.ApplySurface(button, style.bg, style.border)
+    if button.Label then
+        Theme.SetFontColor(button.Label, style.text)
+    end
+    if button.Title then
+        Theme.SetFontColor(button.Title, Theme.colors.text)
+    end
+    if button.Meta then
+        Theme.SetFontColor(button.Meta, button.isSelected and Theme.colors.textMuted or Theme.colors.textDim)
+    end
+end
+
+function Theme.CreateButton(parent, width, height, text, variant, frameName, extraTemplates)
+    local templates = extraTemplates and (extraTemplates .. ", BackdropTemplate") or "BackdropTemplate"
+    local button = CreateFrame("Button", frameName, parent, templates)
+    button:SetSize(width, height)
+    button.variant = variant or "secondary"
+    button.isSelected = false
+    button.isHovered = false
+    button.visualEnabled = true
+
+    button.Label = Theme.CreateText(button, text or "", "body")
+    button.Label:SetPoint("CENTER")
+    button.Label:SetJustifyH("CENTER")
+
+    button:SetScript("OnEnter", function(self)
+        self.isHovered = true
+        Theme.UpdateButtonColors(self)
+    end)
+    button:SetScript("OnLeave", function(self)
+        self.isHovered = false
+        Theme.UpdateButtonColors(self)
+    end)
+    button:SetScript("OnMouseDown", function(self)
+        if self.Label then
+            self.Label:SetPoint("CENTER", 0, -1)
+        end
+    end)
+    button:SetScript("OnMouseUp", function(self)
+        if self.Label then
+            self.Label:SetPoint("CENTER")
+        end
+    end)
+
+    function button:SetText(value)
+        self.Label:SetText(value or "")
+    end
+
+    function button:SetSelected(selected)
+        self.isSelected = selected == true
+        Theme.UpdateButtonColors(self)
+    end
+
+    function button:SetVisualEnabled(enabled)
+        enabled = enabled == true
+        self.visualEnabled = enabled
+        if not InCombatLockdown() then
+            self:SetEnabled(enabled)
+        end
+        self:SetAlpha(1)
+        Theme.UpdateButtonColors(self)
+    end
+
+    Theme.UpdateButtonColors(button)
+    return button
+end
+
+function Theme.CreateCheckbox(parent, width, text)
+    local checkbox = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    checkbox:SetSize(width or 120, 22)
+    checkbox.value = false
+    checkbox.isHovered = false
+
+    checkbox.box = Theme.CreatePanel(checkbox, Theme.colors.input, Theme.colors.borderSoft)
+    checkbox.box:SetSize(16, 16)
+    checkbox.box:SetPoint("LEFT", checkbox, "LEFT", 0, 0)
+
+    checkbox.indicator = checkbox.box:CreateTexture(nil, "ARTWORK")
+    checkbox.indicator:SetColorTexture(Theme.UnpackColor(Theme.colors.accent))
+    checkbox.indicator:SetPoint("TOPLEFT", checkbox.box, "TOPLEFT", 4, -4)
+    checkbox.indicator:SetPoint("BOTTOMRIGHT", checkbox.box, "BOTTOMRIGHT", -4, 4)
+    checkbox.indicator:Hide()
+
+    checkbox.label = Theme.CreateText(checkbox, text or "", "body")
+    checkbox.label:SetPoint("LEFT", checkbox.box, "RIGHT", 8, 0)
+    checkbox.label:SetJustifyH("LEFT")
+
+    checkbox.count = Theme.CreateText(checkbox, "", "label")
+    checkbox.count:SetPoint("RIGHT", checkbox, "RIGHT", 0, 0)
+    checkbox.count:SetWidth(1)
+    checkbox.count:SetJustifyH("RIGHT")
+    checkbox.label:SetPoint("RIGHT", checkbox.count, "LEFT", -8, 0)
+    checkbox.visualEnabled = true
+
+    function checkbox:RefreshVisual()
+        local borderColor = Theme.colors.borderSoft
+        if self.value then
+            borderColor = Theme.colors.accent
+        elseif self.isHovered then
+            borderColor = Theme.colors.accentSoft
+        end
+
+        Theme.ApplySurface(self.box, Theme.colors.input, borderColor)
+        self.indicator:SetShown(self.value)
+        local labelColor = self.value and Theme.colors.text or Theme.colors.textMuted
+        if self.visualEnabled == false then
+            labelColor = Theme.colors.textDim
+        end
+        Theme.SetFontColor(self.label, labelColor)
+        Theme.SetFontColor(self.count, Theme.colors.textMuted)
+    end
+
+    function checkbox:SetCheckedState(value)
+        self.value = value == true
+        self:RefreshVisual()
+    end
+
+    function checkbox:GetCheckedState()
+        return self.value == true
+    end
+
+    function checkbox:SetCount(value)
+        if value == nil or value == "" then
+            self.count:SetText("")
+            self.count:SetWidth(1)
+            return
+        end
+        self.count:SetWidth(36)
+        self.count:SetText(tostring(value))
+    end
+
+    function checkbox:SetVisualEnabled(enabled)
+        self.visualEnabled = enabled ~= false
+        if enabled == false then
+            self:Disable()
+            self:SetAlpha(0.5)
+        else
+            self:Enable()
+            self:SetAlpha(1)
+        end
+        self:RefreshVisual()
+    end
+
+    checkbox:SetScript("OnEnter", function(self)
+        self.isHovered = true
+        self:RefreshVisual()
+    end)
+    checkbox:SetScript("OnLeave", function(self)
+        self.isHovered = false
+        self:RefreshVisual()
+    end)
+
+    checkbox:RefreshVisual()
+    return checkbox
+end
+
+function Theme.CreateItemIcon(parent, size)
+    size = size or 40
+    local wrap = Theme.CreatePanel(parent, { 0.02, 0.02, 0.02, 1 }, Theme.colors.border)
+    wrap:SetSize(size + 2, size + 2)
+
+    local icon = wrap:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("TOPLEFT", wrap, "TOPLEFT", 1, -1)
+    icon:SetPoint("BOTTOMRIGHT", wrap, "BOTTOMRIGHT", -1, 1)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    wrap.Texture = icon
+
+    function wrap:SetIcon(fileID)
+        self.Texture:SetTexture(fileID)
+    end
+
+    function wrap:SetQuality(quality)
+        if quality and C_Item.GetItemQualityColor then
+            local r, g, b = C_Item.GetItemQualityColor(quality)
+            self:SetBackdropBorderColor(r, g, b, 1)
+        else
+            self:SetBackdropBorderColor(Theme.UnpackColor(Theme.colors.border))
+        end
+    end
+
+    return wrap
+end
+
+function Theme.CreateSlider(parent, width, minValue, maxValue, step)
+    local slider = CreateFrame("Slider", nil, parent)
+    slider:SetSize(width or 180, 20)
+    slider:SetOrientation("HORIZONTAL")
+    slider:SetMinMaxValues(minValue or 0, maxValue or 1)
+    slider:SetValueStep(step or 0.1)
+    slider:SetObeyStepOnDrag(true)
+    slider:EnableMouse(true)
+
+    slider.track = slider:CreateTexture(nil, "BACKGROUND")
+    slider.track:SetColorTexture(Theme.UnpackColor(Theme.colors.borderMuted))
+    slider.track:SetPoint("LEFT", slider, "LEFT", 4, 0)
+    slider.track:SetPoint("RIGHT", slider, "RIGHT", -4, 0)
+    slider.track:SetHeight(3)
+
+    slider.fill = slider:CreateTexture(nil, "BORDER")
+    slider.fill:SetColorTexture(Theme.UnpackColor(Theme.colors.accent))
+    slider.fill:SetPoint("LEFT", slider.track, "LEFT", 0, 0)
+    slider.fill:SetHeight(3)
+
+    slider.thumbTexture = slider:CreateTexture(nil, "OVERLAY")
+    slider.thumbTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+    slider.thumbTexture:SetSize(10, 18)
+    slider.thumbTexture:SetVertexColor(Theme.UnpackColor(Theme.colors.accent))
+    slider:SetThumbTexture(slider.thumbTexture)
+
+    slider.isHovered = false
+    slider.isDragging = false
+
+    function slider:FinishDrag()
+        if not self.isDragging then
+            self:RefreshVisual()
+            return
+        end
+
+        self.isDragging = false
+        self:RefreshVisual()
+        if self.OnDragStopCallback then
+            self:OnDragStopCallback()
+        end
+    end
+
+    function slider:RefreshVisual()
+        local value = self:GetValue() or minValue or 0
+        local rangeMin, rangeMax = self:GetMinMaxValues()
+        local range = math.max(0.0001, rangeMax - rangeMin)
+        local percent = math.max(0, math.min(1, (value - rangeMin) / range))
+        local trackWidth = math.max(0, (self.track:GetWidth() or 0))
+        self.fill:SetWidth(trackWidth * percent)
+
+        if self.isHovered or self:IsMouseOver() then
+            self.thumbTexture:SetVertexColor(Theme.UnpackColor(Theme.colors.text))
+        else
+            self.thumbTexture:SetVertexColor(Theme.UnpackColor(Theme.colors.accent))
+        end
+    end
+
+    slider:SetScript("OnEnter", function(self)
+        self.isHovered = true
+        self:RefreshVisual()
+    end)
+    slider:SetScript("OnLeave", function(self)
+        self.isHovered = false
+        self:RefreshVisual()
+    end)
+    slider:SetScript("OnMouseDown", function(self)
+        self.isDragging = true
+        self:RefreshVisual()
+    end)
+    slider:SetScript("OnMouseUp", function(self)
+        self:FinishDrag()
+    end)
+    slider:SetScript("OnHide", function(self)
+        self.isDragging = false
+    end)
+    slider:SetScript("OnSizeChanged", function(self)
+        self:RefreshVisual()
+    end)
+    slider:SetScript("OnUpdate", function(self)
+        if self.isDragging and not IsMouseButtonDown("LeftButton") then
+            self:FinishDrag()
+        end
+    end)
+    slider:SetScript("OnValueChanged", function(self, value)
+        self:RefreshVisual()
+        if self.OnValueChanged then
+            self:OnValueChanged(value)
+        end
+    end)
+
+    slider:RefreshVisual()
+    return slider
+end
+
+function Theme.CreateCard(parent, width, height)
+    local card = Theme.CreatePanel(parent, Theme.colors.card, Theme.colors.borderSoft)
+    if width then
+        card:SetWidth(width)
+    end
+    if height then
+        card:SetHeight(height)
+    end
+    return card
+end
+
+function Theme.SetCardTone(card, tone)
+    local border = Theme.colors.borderSoft
+    if tone == "accent" then
+        border = Theme.colors.accentSoft
+    elseif tone == "success" then
+        border = Theme.colors.success
+    elseif tone == "warning" then
+        border = Theme.colors.warning
+    elseif tone == "danger" then
+        border = Theme.colors.danger
+    elseif tone == "muted" then
+        border = Theme.colors.borderMuted
+    end
+
+    Theme.ApplySurface(card, Theme.colors.card, border)
+end
+
+function Theme.CreateMetricCard(parent, width, height, title)
+    local card = Theme.CreateCard(parent, width, height)
+    card.Title = Theme.CreateText(card, title, "label")
+    card.Title:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -10)
+
+    card.Icon = card:CreateTexture(nil, "ARTWORK")
+    card.Icon:SetSize(18, 18)
+    card.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    card.Icon:Hide()
+
+    card.Value = Theme.CreateText(card, "", "heading")
+    card.Value:SetPoint("TOPLEFT", card.Title, "BOTTOMLEFT", 0, -10)
+    card.Value:SetWidth((width or 160) - 24)
+
+    card.Meta = Theme.CreateText(card, "", "muted")
+    card.Meta:SetPoint("TOPLEFT", card.Value, "BOTTOMLEFT", 0, -6)
+    card.Meta:SetWidth((width or 160) - 24)
+    card.Meta:SetJustifyV("TOP")
+
+    function card:SetMetric(value, meta, tone, iconTexture)
+        self.Value:SetText(value or "")
+        self.Meta:SetText(meta or "")
+        Theme.SetCardTone(self, tone)
+
+        self.Value:ClearAllPoints()
+        self.Meta:ClearAllPoints()
+
+        if iconTexture then
+            self.Icon:SetTexture(iconTexture)
+            self.Icon:Show()
+            self.Icon:SetPoint("TOPLEFT", self.Title, "BOTTOMLEFT", 0, -8)
+            self.Value:SetPoint("TOPLEFT", self.Icon, "TOPRIGHT", 8, -1)
+            self.Value:SetWidth((width or 160) - 50)
+        else
+            self.Icon:Hide()
+            self.Value:SetPoint("TOPLEFT", self.Title, "BOTTOMLEFT", 0, -8)
+            self.Value:SetWidth((width or 160) - 24)
+        end
+
+        self.Meta:SetPoint("TOPLEFT", self.Value, "BOTTOMLEFT", 0, -6)
+        self.Meta:SetWidth((width or 160) - 24)
+    end
+
+    return card
+end
+
+function Theme.CreateStyledScrollArea(parent, contentWidth)
+    local scrollFrame = CreateFrame("ScrollFrame", nil, parent)
+    scrollFrame:EnableMouseWheel(true)
+
+    local content = CreateFrame("Frame", nil, scrollFrame)
+    content:SetSize(contentWidth, 1)
+    scrollFrame:SetScrollChild(content)
+
+    local scrollBar = CreateFrame("Frame", nil, parent)
+    scrollBar:SetWidth(10)
+    scrollBar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -10, -8)
+    scrollBar:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -10, 8)
+    scrollBar:EnableMouse(true)
+    scrollBar:Hide()
+
+    local track = scrollBar:CreateTexture(nil, "BACKGROUND")
+    track:SetColorTexture(0.28, 0.2, 0.08, 0.25)
+    track:SetPoint("TOP", scrollBar, "TOP", 0, 0)
+    track:SetPoint("BOTTOM", scrollBar, "BOTTOM", 0, 0)
+    track:SetWidth(3)
+
+    local thumb = CreateFrame("Button", nil, scrollBar, "BackdropTemplate")
+    Theme.ApplySurface(thumb, Theme.colors.accentDim, Theme.colors.accent)
+    thumb:SetWidth(7)
+    thumb:SetPoint("TOP", scrollBar, "TOP", 0, 0)
+    thumb:RegisterForClicks("LeftButtonDown", "LeftButtonUp")
+    scrollBar.thumb = thumb
+
+    local function getScrollMetrics()
+        local visibleHeight = scrollFrame:GetHeight() or 0
+        local contentHeight = content:GetHeight() or 0
+        local range = math.max(0, contentHeight - visibleHeight)
+        local thumbHeight = 0
+        if contentHeight > 0 and visibleHeight > 0 then
+            thumbHeight = math.max(28, math.floor((visibleHeight / contentHeight) * visibleHeight))
+            thumbHeight = math.min(visibleHeight, thumbHeight)
+        end
+
+        local travel = math.max(0, (scrollBar:GetHeight() or 0) - thumbHeight)
+        return visibleHeight, contentHeight, range, thumbHeight, travel
+    end
+
+    local function positionThumb(scrollValue)
+        local _, _, range, thumbHeight, travel = getScrollMetrics()
+        thumb:SetHeight(thumbHeight)
+
+        if range <= 0 or travel <= 0 then
+            thumb:ClearAllPoints()
+            thumb:SetPoint("TOP", scrollBar, "TOP", 0, 0)
+            return
+        end
+
+        local offset = (scrollValue / range) * travel
+        thumb:ClearAllPoints()
+        thumb:SetPoint("TOP", scrollBar, "TOP", 0, -offset)
+    end
+
+    local function setScrollValue(scrollValue)
+        local _, _, range = getScrollMetrics()
+        if scrollValue < 0 then
+            scrollValue = 0
+        elseif scrollValue > range then
+            scrollValue = range
+        end
+
+        scrollFrame:SetVerticalScroll(scrollValue)
+        positionThumb(scrollValue)
+    end
+
+    local function scrollFromCursor()
+        local _, _, range, thumbHeight, travel = getScrollMetrics()
+        if range <= 0 or travel <= 0 then
+            setScrollValue(0)
+            return
+        end
+
+        local scale = scrollBar:GetEffectiveScale() or 1
+        local cursorY = select(2, GetCursorPosition()) / scale
+        local top = scrollBar:GetTop() or 0
+        local offset = top - cursorY - (thumbHeight * 0.5)
+
+        if offset < 0 then
+            offset = 0
+        elseif offset > travel then
+            offset = travel
+        end
+
+        setScrollValue((offset / travel) * range)
+    end
+
+    local function updateScrollBar()
+        setScrollValue(scrollFrame:GetVerticalScroll() or 0)
+
+        local _, _, range = getScrollMetrics()
+        if range <= 1 then
+            scrollBar:Hide()
+            return
+        end
+
+        scrollBar:Show()
+    end
+
+    scrollFrame:SetScript("OnMouseWheel", function(_, delta)
+        if not scrollBar:IsShown() then
+            return
+        end
+
+        local step = math.max(28, math.floor((scrollFrame:GetHeight() or 0) * 0.18))
+        setScrollValue((scrollFrame:GetVerticalScroll() or 0) - (delta * step))
+    end)
+
+    thumb:SetScript("OnMouseDown", function(self)
+        self.isDragging = true
+        Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accent)
+        self:SetScript("OnUpdate", scrollFromCursor)
+        scrollFromCursor()
+    end)
+    thumb:SetScript("OnMouseUp", function(self)
+        self.isDragging = false
+        self:SetScript("OnUpdate", nil)
+        Theme.ApplySurface(self, Theme.colors.accentDim, Theme.colors.accent)
+    end)
+    thumb:SetScript("OnHide", function(self)
+        self.isDragging = false
+        self:SetScript("OnUpdate", nil)
+    end)
+    thumb:SetScript("OnEnter", function(self)
+        Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accent)
+    end)
+    thumb:SetScript("OnLeave", function(self)
+        if self.isDragging then
+            Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accent)
+        else
+            Theme.ApplySurface(self, Theme.colors.accentDim, Theme.colors.accent)
+        end
+    end)
+
+    scrollBar:SetScript("OnMouseDown", function()
+        scrollFromCursor()
+    end)
+
+    scrollFrame:SetScript("OnShow", updateScrollBar)
+    scrollFrame:SetScript("OnSizeChanged", updateScrollBar)
+    content:SetScript("OnSizeChanged", updateScrollBar)
+    scrollBar:SetScript("OnSizeChanged", updateScrollBar)
+
+    scrollFrame.UpdateScrollBar = updateScrollBar
+    scrollFrame.ScrollBar = scrollBar
+    scrollFrame.ScrollChild = content
+
+    return scrollFrame, content, scrollBar
+end

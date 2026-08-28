@@ -1,0 +1,30 @@
+local AddonName = ...
+
+local AceLocale = LibStub:GetLibrary("AceLocale-3.0")
+local L = AceLocale:NewLocale(AddonName, "enUS", true, false)
+
+L["ADDON_NAME"] = "Disenchanter"
+L["WINDOW_SUBTITLE"] = "Queue items from your bags, then click Disenchant."
+L["SIDEBAR_BAGS_DESC"] = "Disenchantable items matching your filters."
+L["WORKSPACE_QUEUE_TITLE"] = "Queue"
+L["WORKSPACE_QUEUE_DESC"] = "Click an item to add it. Drag queued rows to reorder."
+L["BUTTON_ADD_ALL"] = "Add all"
+L["BUTTON_CLEAR_QUEUE"] = "Clear"
+L["BUTTON_OPEN_DISENCHANTER"] = "Open Disenchanter"
+L["BUTTON_ORDER_BY"] = "Order by"
+L["BUTTON_GROUP_BY"] = "Group by"
+L["BIND_BOE"] = "BoE"
+L["BIND_BOP"] = "BoP"
+L["BIND_BOU"] = "BoU"
+L["BIND_ACCOUNT"] = "Account"
+L["SORT_NAME"] = "Alphabetical"
+L["SORT_SLOT"] = "Armor type"
+L["FILTER_CURRENT_EXPANSION"] = "Current expansion items"
+L["LABEL_COMPARTMENT"] = "Compartment icon"
+L["FMT_QUEUE_COUNT"] = "%d / %d"
+L["FMT_CAST_REMAINING"] = "%.1fs"
+L["EMPTY_BAGS"] = "No disenchantable items in bags."
+L["EMPTY_QUEUE"] = "Queue is empty. Add items from your bags."
+L["MINIMAP_TOOLTIP"] = "Open Disenchanter"
+L["BINDING_HEADER"] = "Disenchanter"
+L["BINDING_CAST"] = "Disenchant next queued item"

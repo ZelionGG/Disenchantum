@@ -1,0 +1,13 @@
+package-as: Disenchanter
+enable-nolib-creation: no
+
+ignore:
+  - node_modules
+
+externals:
+  Libs/LibDBIcon-1.0: https://repos.wowace.com/wow/libdbicon-1-0/trunk/LibDBIcon-1.0
+  Libs/AceDB-3.0: https://repos.curseforge.com/wow/ace3/trunk/AceDB-3.0
+  Libs/AceLocale-3.0: https://repos.curseforge.com/wow/ace3/trunk/AceLocale-3.0
+  Libs/CallbackHandler-1.0: https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0
+  Libs/LibStub: https://repos.curseforge.com/wow/libstub/trunk
+  Libs/LibDataBroker-1.1: https://repos.curseforge.com/wow/libdatabroker-1-1

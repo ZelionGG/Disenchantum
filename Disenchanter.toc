@@ -1,0 +1,24 @@
+## Interface: 120100
+## Title: Disenchanter
+## Author: ZelionGG
+## Version: @project-version@
+## IconTexture: Interface\AddOns\Disenchanter\Media\icon.png
+
+## Notes: Queue bag items and disenchant them with one secure button click per item.
+## Notes-frFR: Mettez des objets de sac en file et désenchantez-les d'un clic sécurisé par objet.
+
+## SavedVariables: DisenchanterDB
+
+## Category-enUS: Professions
+## Category-frFR: Métiers
+
+Embeds.xml
+Locales/locales.xml
+
+Defaults.lua
+Modules/Theme.lua
+Modules/Eligibility.lua
+Modules/Queue.lua
+Modules/SecureDisenchant.lua
+Modules/MainWindow.lua
+Core.lua
