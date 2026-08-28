@@ -3,6 +3,14 @@ local AddonName = ...
 local AceLocale = LibStub:GetLibrary("AceLocale-3.0")
 local L = AceLocale:NewLocale(AddonName, "enUS", true, false)
 
+-- Reference:
+-- Some strings below are sourced from BlizzardInterfaceResources.
+-- Source: https://github.com/Ketho/BlizzardInterfaceResources/blob/live/Resources/GlobalStrings/enUS.lua
+-- @Translation Team: If you find a false positive (a string that should stay identical),
+-- add `-- @no-translate` at the end of the line so the locale sync script ignores untranslated detection and stale marking when enUS changes.
+
+-- ## Translations Start ## --
+
 L["ADDON_NAME"] = "Disenchantum"
 L["WINDOW_SUBTITLE"] = "Queue items from your bags, then click Disenchant."
 L["SIDEBAR_BAGS_DESC"] = "Disenchantable items matching your filters. Right-click to ignore."

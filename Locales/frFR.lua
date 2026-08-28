@@ -1,12 +1,16 @@
 local AddonName = ...
 
 local AceLocale = LibStub:GetLibrary("AceLocale-3.0")
-local L = AceLocale:NewLocale(AddonName, "frFR")
-if not L then
-    return
-end
+local L = AceLocale:NewLocale(AddonName, "frFR", false, false)
+if not L then return end
 
-L["ADDON_NAME"] = "Disenchantum"
+-- Reference:
+-- Some strings below are sourced from BlizzardInterfaceResources.
+-- Source: https://github.com/Ketho/BlizzardInterfaceResources/blob/live/Resources/GlobalStrings/frFR.lua
+-- @Translation Team: If you find a false positive (a string that should stay identical),
+-- add `-- @no-translate` at the end of the line so the locale sync script ignores untranslated detection and stale marking when enUS changes.
+
+L["ADDON_NAME"] = "Disenchantum" -- @no-translate
 L["WINDOW_SUBTITLE"] = "Mettez des objets en file, puis cliquez Désenchanter."
 L["SIDEBAR_BAGS_DESC"] = "Objets désenchantables selon vos filtres. Clic droit pour ignorer."
 L["WORKSPACE_QUEUE_TITLE"] = "File"
@@ -17,28 +21,28 @@ L["BUTTON_CLEAR_QUEUE"] = "Vider"
 L["BUTTON_OPEN_DISENCHANTER"] = "Ouvrir Disenchantum"
 L["BUTTON_ORDER_BY"] = "Trier"
 L["BUTTON_GROUP_BY"] = "Grouper"
-L["BUTTON_CHANGELOG"] = "Changelog"
+L["BUTTON_CHANGELOG"] = "Notes de mise à jour" -- @no-translate
 L["CHANGELOG_TITLE"] = "Notes de mise à jour"
-L["CHANGELOG_IMPORTANT"] = "Important"
+L["CHANGELOG_IMPORTANT"] = "Important" -- @no-translate
 L["CHANGELOG_NEW"] = "Nouveautés"
 L["CHANGELOG_BUGFIXES"] = "Corrections"
 L["CHANGELOG_IMPROVEMENT"] = "Améliorations"
 L["EMPTY_CHANGELOG"] = "Aucune note de version."
-L["BIND_BOE"] = "BoE"
-L["BIND_BOP"] = "BoP"
-L["BIND_BOU"] = "BoU"
+L["BIND_BOE"] = "LqE"
+L["BIND_BOP"] = "LqR"
+L["BIND_BOU"] = "LqU"
 L["BIND_ACCOUNT"] = "Compte"
 L["SORT_NAME"] = "Alphabétique"
 L["SORT_SLOT"] = "Type d'armure"
 L["FILTER_CURRENT_EXPANSION"] = "Objets de l'extension actuelle"
 L["LABEL_COMPARTMENT"] = "Icône compartiment"
 L["LABEL_AUTO_LOOT_REAGENTS"] = "Fouille auto des composants"
-L["FMT_QUEUE_COUNT"] = "%d / %d"
+L["FMT_QUEUE_COUNT"] = "%d / %d" -- @no-translate
 L["FMT_SESSION_ITEMS"] = "%d désenchantés"
-L["FMT_SESSION_CHIP_COUNT"] = "x%d"
-L["FMT_SESSION_MORE"] = "+%d"
+L["FMT_SESSION_CHIP_COUNT"] = "x%d" -- @no-translate
+L["FMT_SESSION_MORE"] = "+%d" -- @no-translate
 L["EMPTY_SESSION"] = "Aucun désenchantement cette session."
-L["FMT_CAST_REMAINING"] = "%.1fs"
+L["FMT_CAST_REMAINING"] = "%.1fs" -- @no-translate
 L["EMPTY_BAGS"] = "Aucun objet désenchantable dans les sacs."
 L["EMPTY_BLACKLIST"] = "Aucun objet ignoré."
 L["EMPTY_QUEUE"] = "File vide. Ajoutez des objets depuis vos sacs."
@@ -46,5 +50,5 @@ L["CONFIRM_BLACKLIST"] = "Ignorer cet objet ? Il disparaîtra des Sacs et de Tou
 L["CONFIRM_QUEUE_CRAFTED"] = "Mettre cet objet crafté en file ?"
 L["CONFIRM_QUEUE_CRAFTED_N"] = "Mettre %d objets craftés en file ?"
 L["MINIMAP_TOOLTIP"] = "Ouvrir Disenchantum"
-L["BINDING_HEADER"] = "Disenchantum"
+L["BINDING_HEADER"] = "Disenchantum" -- @no-translate
 L["BINDING_CAST"] = "Désenchanter l'objet suivant"
