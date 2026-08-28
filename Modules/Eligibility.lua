@@ -243,8 +243,16 @@ function Eligibility.IsDisenchantCandidate(bag, slot)
         return false, info
     end
 
-    local _, _, _, _, _, classID = C_Item.GetItemInfoInstant(info.itemID)
+    local _, _, _, itemEquipLoc, _, classID = C_Item.GetItemInfoInstant(info.itemID)
     if classID ~= Enum.ItemClass.Armor and classID ~= Enum.ItemClass.Weapon then
+        if guid then
+            candidateCache[guid] = { ok = false }
+        end
+        return false, info
+    end
+
+    -- Tabards/shirts never DE and omit ITEM_DISENCHANT_NOT_DISENCHANTABLE.
+    if itemEquipLoc == "INVTYPE_TABARD" or itemEquipLoc == "INVTYPE_BODY" then
         if guid then
             candidateCache[guid] = { ok = false }
         end
