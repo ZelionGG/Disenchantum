@@ -4,6 +4,7 @@ addon.name = ADDON_NAME
 addon.L = LibStub:GetLibrary("AceLocale-3.0"):GetLocale(ADDON_NAME)
 
 local L = addon.L
+local Theme = addon.Theme
 local MainWindow = addon.MainWindow
 local Queue = addon.Queue
 local SecureDisenchant = addon.SecureDisenchant
@@ -59,7 +60,8 @@ local function registerMinimap()
             MainWindow:Toggle()
         end,
         OnTooltipShow = function(tooltip)
-            tooltip:AddLine(L["ADDON_NAME"], 1, 0.82, 0)
+            local r, g, b = Theme.UnpackColor(Theme.colors.accent)
+            tooltip:AddLine(L["ADDON_NAME"], r, g, b)
             tooltip:AddLine(L["MINIMAP_TOOLTIP"], 0.9, 0.9, 0.9, true)
             tooltip:AddLine("/de", 0.65, 0.65, 0.65)
         end,
@@ -184,7 +186,7 @@ end
 
 local function applyProfessionTabTextColor(button)
     if button.Text and button.Text.SetTextColor then
-        button.Text:SetTextColor(0.78, 0.62, 0.95, 1)
+        button.Text:SetTextColor(Theme.UnpackColor(Theme.colors.accentAlt))
     end
 end
 

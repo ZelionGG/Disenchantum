@@ -3,24 +3,25 @@ local _, addon = ...
 local Theme = {
     colors = {
         window = { 0.04, 0.04, 0.05, 0.98 },
-        titleBar = { 0.07, 0.06, 0.04, 0.98 },
+        titleBar = { 0.05, 0.05, 0.07, 0.98 },
         sidebar = { 0.055, 0.055, 0.06, 0.96 },
         workspace = { 0.05, 0.05, 0.055, 0.96 },
         card = { 0.085, 0.085, 0.095, 0.94 },
         cardSoft = { 0.075, 0.075, 0.085, 0.9 },
         cardInset = { 0.06, 0.06, 0.07, 0.95 },
         input = { 0.045, 0.045, 0.05, 0.98 },
-        border = { 0.2, 0.18, 0.15, 0.92 },
-        borderSoft = { 0.14, 0.13, 0.12, 0.85 },
-        borderMuted = { 0.11, 0.11, 0.12, 0.8 },
-        accent = { 0.92, 0.71, 0.24, 1 },
-        accentSoft = { 0.58, 0.42, 0.16, 0.95 },
-        accentDim = { 0.34, 0.26, 0.12, 0.92 },
+        border = { 0.16, 0.16, 0.22, 0.92 },
+        borderSoft = { 0.13, 0.13, 0.18, 0.85 },
+        borderMuted = { 0.11, 0.11, 0.14, 0.8 },
+        accent = { 0.38, 0.82, 0.88, 1 },
+        accentAlt = { 0.78, 0.62, 0.95, 1 },
+        accentSoft = { 0.22, 0.48, 0.55, 0.95 },
+        accentDim = { 0.12, 0.28, 0.34, 0.92 },
         success = { 0.26, 0.72, 0.44, 1 },
         warning = { 0.9, 0.68, 0.26, 1 },
         danger = { 0.78, 0.29, 0.27, 1 },
-        text = { 0.95, 0.93, 0.88, 1 },
-        textMuted = { 0.72, 0.7, 0.67, 1 },
+        text = { 0.92, 0.93, 0.96, 1 },
+        textMuted = { 0.68, 0.70, 0.74, 1 },
         textDim = { 0.5, 0.5, 0.52, 1 },
         disabledButton = { 0.22, 0.22, 0.24, 0.96 },
         disabledButtonBorder = { 0.38, 0.38, 0.4, 0.95 },
@@ -32,6 +33,15 @@ addon.Theme = Theme
 
 function Theme.UnpackColor(color)
     return color[1], color[2], color[3], color[4] or 1
+end
+
+function Theme.ApplyGradient(texture, orientation, fromColor, toColor)
+    texture:SetColorTexture(1, 1, 1, 1)
+    texture:SetGradient(
+        orientation,
+        CreateColor(Theme.UnpackColor(fromColor)),
+        CreateColor(Theme.UnpackColor(toColor))
+    )
 end
 
 function Theme.ApplySurface(frame, background, border)
@@ -85,7 +95,7 @@ end
 
 function Theme.CreateAccentLine(parent, width)
     local texture = parent:CreateTexture(nil, "BORDER")
-    texture:SetColorTexture(Theme.UnpackColor(Theme.colors.accent))
+    Theme.ApplyGradient(texture, "HORIZONTAL", Theme.colors.accent, Theme.colors.accentAlt)
     texture:SetSize(width, 2)
     return texture
 end
@@ -95,15 +105,15 @@ function Theme.UpdateButtonColors(button)
     local variant = button.variant or "secondary"
     local palette = {
         primary = {
-            normal = { bg = colors.accentDim, border = colors.accentSoft, text = colors.text },
-            hover = { bg = colors.accentSoft, border = colors.accent, text = colors.text },
-            active = { bg = colors.accentSoft, border = colors.accent, text = colors.text },
+            normal = { bg = colors.accentDim, border = colors.accent, text = colors.text },
+            hover = { bg = colors.accentSoft, border = colors.accentAlt, text = colors.text },
+            active = { bg = colors.accentSoft, border = colors.accentAlt, text = colors.text },
             disabled = { bg = colors.disabledButton, border = colors.disabledButtonBorder, text = colors.disabledButtonText },
         },
         secondary = {
             normal = { bg = colors.cardInset, border = colors.borderSoft, text = colors.text },
-            hover = { bg = colors.cardSoft, border = colors.accentSoft, text = colors.text },
-            active = { bg = colors.cardSoft, border = colors.accent, text = colors.text },
+            hover = { bg = colors.cardSoft, border = colors.accentAlt, text = colors.text },
+            active = { bg = colors.cardSoft, border = colors.accentAlt, text = colors.text },
             disabled = { bg = colors.cardInset, border = colors.borderMuted, text = colors.textDim },
         },
         danger = {
@@ -115,7 +125,7 @@ function Theme.UpdateButtonColors(button)
         subtle = {
             normal = { bg = colors.card, border = colors.borderMuted, text = colors.textMuted },
             hover = { bg = colors.cardSoft, border = colors.borderSoft, text = colors.text },
-            active = { bg = colors.cardSoft, border = colors.accentSoft, text = colors.text },
+            active = { bg = colors.cardSoft, border = colors.accentAlt, text = colors.text },
             disabled = { bg = colors.cardInset, border = colors.borderMuted, text = colors.textDim },
         },
     }
@@ -229,9 +239,9 @@ function Theme.CreateCheckbox(parent, width, text)
     function checkbox:RefreshVisual()
         local borderColor = Theme.colors.borderSoft
         if self.value then
-            borderColor = Theme.colors.accent
+            borderColor = Theme.colors.accentAlt
         elseif self.isHovered then
-            borderColor = Theme.colors.accentSoft
+            borderColor = Theme.colors.accentAlt
         end
 
         Theme.ApplySurface(self.box, Theme.colors.input, borderColor)
@@ -359,7 +369,7 @@ function Theme.CreateStyledScrollArea(parent, contentWidth)
     scrollBar:Hide()
 
     local track = scrollBar:CreateTexture(nil, "BACKGROUND")
-    track:SetColorTexture(0.28, 0.2, 0.08, 0.25)
+    Theme.ApplyGradient(track, "VERTICAL", { 0.10, 0.22, 0.28, 0.35 }, { 0.22, 0.14, 0.32, 0.35 })
     track:SetPoint("TOP", scrollBar, "TOP", 0, 0)
     track:SetPoint("BOTTOM", scrollBar, "BOTTOM", 0, 0)
     track:SetWidth(3)
@@ -456,7 +466,7 @@ function Theme.CreateStyledScrollArea(parent, contentWidth)
 
     thumb:SetScript("OnMouseDown", function(self)
         self.isDragging = true
-        Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accent)
+        Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accentAlt)
         self:SetScript("OnUpdate", scrollFromCursor)
         scrollFromCursor()
     end)
@@ -470,11 +480,11 @@ function Theme.CreateStyledScrollArea(parent, contentWidth)
         self:SetScript("OnUpdate", nil)
     end)
     thumb:SetScript("OnEnter", function(self)
-        Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accent)
+        Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accentAlt)
     end)
     thumb:SetScript("OnLeave", function(self)
         if self.isDragging then
-            Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accent)
+            Theme.ApplySurface(self, Theme.colors.accentSoft, Theme.colors.accentAlt)
         else
             Theme.ApplySurface(self, Theme.colors.accentDim, Theme.colors.accent)
         end

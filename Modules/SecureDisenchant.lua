@@ -120,14 +120,18 @@ local function hideProgressFill(button)
     end
 end
 
+local function applyCastFill(button)
+    Theme.ApplyGradient(button.cooldownFill, "VERTICAL", Theme.colors.accentDim, Theme.colors.accentAlt)
+    button.cooldownFill:SetAlpha(0.85)
+end
+
 local function setProgressFill(button, ratio, isCast)
     local width = button:GetWidth() or 1
     button.cooldownFill:SetWidth(math.max(1, width * ratio))
     if button.fillIsCast ~= isCast then
         button.fillIsCast = isCast
         if isCast then
-            button.cooldownFill:SetColorTexture(Theme.UnpackColor(Theme.colors.accentDim))
-            button.cooldownFill:SetAlpha(0.85)
+            applyCastFill(button)
         else
             button.cooldownFill:SetColorTexture(0, 0, 0, 0.45)
             button.cooldownFill:SetAlpha(1)
@@ -225,7 +229,7 @@ function SecureDisenchant.EnsureButton(parent)
 
     button.cooldownFill = button:CreateTexture(nil, "ARTWORK")
     button.cooldownFill:SetDrawLayer("ARTWORK", -1)
-    button.cooldownFill:SetColorTexture(Theme.UnpackColor(Theme.colors.accentDim))
+    applyCastFill(button)
     button.fillIsCast = true
     button.cooldownFill:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
     button.cooldownFill:SetPoint("BOTTOMLEFT", button, "BOTTOMLEFT", 1, 1)

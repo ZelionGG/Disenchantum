@@ -28,6 +28,7 @@ read_globals = {
     'C_TradeSkillUI',
     'ClearCursor',
     'Constants',
+    'CreateColor',
     'CreateFrame',
     'Enum',
     'EventRegistry',

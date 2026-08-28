@@ -475,7 +475,7 @@ function MainWindow:RefreshQueueDragHighlights()
             if self.queueDragState and row.queueIndex == self.queueDragState.sourceIndex then
                 Theme.ApplySurface(row, Theme.colors.cardSoft, Theme.colors.accentSoft)
             elseif row.isHovered and not self.queueDragState then
-                Theme.ApplySurface(row, Theme.colors.cardSoft, Theme.colors.accent)
+                Theme.ApplySurface(row, Theme.colors.cardSoft, Theme.colors.accentAlt)
             elseif row.queueIndex == 1 then
                 Theme.SetCardTone(row, "success")
             else
@@ -888,12 +888,12 @@ function MainWindow:Initialize()
     closeButton:SetPoint("TOPRIGHT", header, "TOPRIGHT", -14, -10)
     closeButton.Text = Theme.CreateText(closeButton, "X", "heading")
     closeButton.Text:SetPoint("CENTER", closeButton, "CENTER", 0, -1)
-    Theme.SetFontColor(closeButton.Text, Theme.colors.accent)
+    Theme.SetFontColor(closeButton.Text, Theme.colors.accentAlt)
     closeButton:SetScript("OnEnter", function(buttonFrame)
         Theme.SetFontColor(buttonFrame.Text, Theme.colors.text)
     end)
     closeButton:SetScript("OnLeave", function(buttonFrame)
-        Theme.SetFontColor(buttonFrame.Text, Theme.colors.accent)
+        Theme.SetFontColor(buttonFrame.Text, Theme.colors.accentAlt)
     end)
     closeButton:SetScript("OnClick", function()
         frame:Hide()
@@ -1022,7 +1022,7 @@ function MainWindow:Initialize()
 
     self.queueInsertLine = self.queueContent:CreateTexture(nil, "OVERLAY")
     self.queueInsertLine:SetHeight(2)
-    self.queueInsertLine:SetColorTexture(Theme.UnpackColor(Theme.colors.accent))
+    Theme.ApplyGradient(self.queueInsertLine, "HORIZONTAL", Theme.colors.accent, Theme.colors.accentAlt)
     self.queueInsertLine:Hide()
 
     self.queueEmpty = Theme.CreateText(self.queueScrollCard, L["EMPTY_QUEUE"], "muted")
