@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help improve Disenchanter
+about: Create a report to help improve Disenchantum
 title: "[Bug] "
 labels: ''
 assignees: ZelionGG
@@ -19,7 +19,7 @@ A clear and concise description of what you expected to happen.
 **Lua error logs**
 A copy-paste of your Lua errors.
 
-**Disenchanter Version**
+**Disenchantum Version**
 Which version are you using?
 
 **Additional context**

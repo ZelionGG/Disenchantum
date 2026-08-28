@@ -10,8 +10,8 @@ local Queue = addon.Queue
 local SecureDisenchant = addon.SecureDisenchant
 local Eligibility = addon.Eligibility
 
-BINDING_HEADER_DISENCHANTER = L["BINDING_HEADER"]
-_G["BINDING_NAME_CLICK DisenchanterSecureButton:LeftButton"] = L["BINDING_CAST"]
+BINDING_HEADER_DISENCHANTUM = L["BINDING_HEADER"]
+_G["BINDING_NAME_CLICK DisenchantumSecureButton:LeftButton"] = L["BINDING_CAST"]
 
 local eventFrame = CreateFrame("Frame")
 
@@ -73,9 +73,9 @@ local function registerMinimap()
 end
 
 local function registerSlashCommands()
-    SLASH_DISENCHANTER1 = "/de"
-    SLASH_DISENCHANTER2 = "/disenchanter"
-    SlashCmdList.DISENCHANTER = function()
+    SLASH_DISENCHANTUM1 = "/de"
+    SLASH_DISENCHANTUM2 = "/disenchantum"
+    SlashCmdList.DISENCHANTUM = function()
         MainWindow:Toggle()
     end
 end
@@ -292,9 +292,9 @@ local function ensureProfessionButton()
     end
 
     if isElvUILoaded() then
-        professionButton = CreateFrame("Button", "DisenchanterProfessionButton", ProfessionsFrame)
+        professionButton = CreateFrame("Button", "DisenchantumProfessionButton", ProfessionsFrame)
     else
-        professionButton = CreateFrame("Button", "DisenchanterProfessionButton", ProfessionsFrame, "TabSystemButtonArtTemplate")
+        professionButton = CreateFrame("Button", "DisenchantumProfessionButton", ProfessionsFrame, "TabSystemButtonArtTemplate")
     end
     if isElvUILoaded() then
         styleProfessionTabElvUI(professionButton)

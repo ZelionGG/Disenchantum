@@ -1,13 +1,13 @@
 ## Interface: 120100
-## Title: Disenchanter
+## Title: Disenchantum
 ## Author: ZelionGG
 ## Version: @project-version@
-## IconTexture: Interface\AddOns\Disenchanter\Media\icon.png
+## IconTexture: Interface\AddOns\Disenchantum\Media\icon.png
 
 ## Notes: Queue bag items and disenchant them with one secure button click per item.
 ## Notes-frFR: Mettez des objets de sac en file et désenchantez-les d'un clic sécurisé par objet.
 
-## SavedVariables: DisenchanterDB
+## SavedVariables: DisenchantumDB
 
 ## Category-enUS: Professions
 ## Category-frFR: Métiers

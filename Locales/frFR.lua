@@ -6,7 +6,7 @@ if not L then
     return
 end
 
-L["ADDON_NAME"] = "Disenchanter"
+L["ADDON_NAME"] = "Disenchantum"
 L["WINDOW_SUBTITLE"] = "Mettez des objets en file, puis cliquez Désenchanter."
 L["SIDEBAR_BAGS_DESC"] = "Objets désenchantables selon vos filtres. Clic droit pour ignorer."
 L["WORKSPACE_QUEUE_TITLE"] = "File"
@@ -14,7 +14,7 @@ L["WORKSPACE_QUEUE_DESC"] = "Cliquez pour ajouter. Glissez les lignes pour réor
 L["BUTTON_ADD_ALL"] = "Tout ajouter"
 L["BUTTON_BLACKLIST"] = "Liste noire"
 L["BUTTON_CLEAR_QUEUE"] = "Vider"
-L["BUTTON_OPEN_DISENCHANTER"] = "Ouvrir Disenchanter"
+L["BUTTON_OPEN_DISENCHANTER"] = "Ouvrir Disenchantum"
 L["BUTTON_ORDER_BY"] = "Trier"
 L["BUTTON_GROUP_BY"] = "Grouper"
 L["BUTTON_CHANGELOG"] = "Changelog"
@@ -45,6 +45,6 @@ L["EMPTY_QUEUE"] = "File vide. Ajoutez des objets depuis vos sacs."
 L["CONFIRM_BLACKLIST"] = "Ignorer cet objet ? Il disparaîtra des Sacs et de Tout ajouter."
 L["CONFIRM_QUEUE_CRAFTED"] = "Mettre cet objet crafté en file ?"
 L["CONFIRM_QUEUE_CRAFTED_N"] = "Mettre %d objets craftés en file ?"
-L["MINIMAP_TOOLTIP"] = "Ouvrir Disenchanter"
-L["BINDING_HEADER"] = "Disenchanter"
+L["MINIMAP_TOOLTIP"] = "Ouvrir Disenchantum"
+L["BINDING_HEADER"] = "Disenchantum"
 L["BINDING_CAST"] = "Désenchanter l'objet suivant"

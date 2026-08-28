@@ -10,9 +10,9 @@ exclude_files = {
 }
 
 globals = {
-    'BINDING_HEADER_DISENCHANTER',
-    'SLASH_DISENCHANTER1',
-    'SLASH_DISENCHANTER2',
+    'BINDING_HEADER_DISENCHANTUM',
+    'SLASH_DISENCHANTUM1',
+    'SLASH_DISENCHANTUM2',
     'SlashCmdList',
     'StaticPopupDialogs',
 }

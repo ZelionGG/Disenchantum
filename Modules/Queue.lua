@@ -156,7 +156,7 @@ end
 
 -- Merchant-style item row (icon + quality name). Hover uses SetHyperlink.
 -- Add-all stays on GENERIC_CONFIRMATION: there is no single item to preview.
-local ITEM_CONFIRM_WHICH = "DISENCHANTER_CONFIRM_ITEM"
+local ITEM_CONFIRM_WHICH = "DISENCHANTUM_CONFIRM_ITEM"
 
 StaticPopupDialogs[ITEM_CONFIRM_WHICH] = {
     text = "",
@@ -187,7 +187,7 @@ StaticPopupDialogs[ITEM_CONFIRM_WHICH] = {
 local itemConfirmData = {}
 
 local craftBatchConfirmData = {
-    referenceKey = "DisenchanterCraftedQueue",
+    referenceKey = "DisenchantumCraftedQueue",
     showAlert = true,
 }
 

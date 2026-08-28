@@ -9,6 +9,8 @@ local RAIL_WIDTH = 160
 local RAIL_ROW_HEIGHT = 32
 local RAIL_ROW_GAP = 6
 local BODY_PAD = 16
+local VERSION_BAR_HEIGHT = 28
+local CHEVRON_SIZE = 24
 
 local function versionToSortKey(versionString)
     local major, minor, patch = tostring(versionString or ""):match("^(%d+)%.(%d+)%.?(%d*)")
@@ -121,18 +123,12 @@ local function layoutBody()
             line:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
             line:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -y)
             y = y + height + 8
-            if index == Changelog.versionRuleIndex then
-                y = placeRule(Changelog.versionRule, content, y)
-            end
             if index == Changelog.headerRuleIndex then
                 y = placeRule(Changelog.headerRule, content, y)
             end
         end
     end
 
-    if Changelog.versionRule and Changelog.versionRuleIndex == nil then
-        Changelog.versionRule:Hide()
-    end
     if Changelog.headerRule and Changelog.headerRuleIndex == nil then
         Changelog.headerRule:Hide()
     end
@@ -172,6 +168,79 @@ local function acquireBodyLine(index, variant)
     return line
 end
 
+local function selectedVersionIndex()
+    local versions = Changelog.GetSortedVersions()
+    for index = 1, #versions do
+        if versions[index] == Changelog.selectedVersion then
+            return index, versions
+        end
+    end
+    return nil, versions
+end
+
+local function setChevronEnabled(button, enabled)
+    if not button then
+        return
+    end
+    button:SetVisualEnabled(enabled)
+    button:EnableMouse(enabled)
+    if enabled then
+        button:Enable()
+    else
+        button:Disable()
+        button:SetAlpha(0.35)
+    end
+end
+
+local function updateChevrons()
+    local index, versions = selectedVersionIndex()
+    local count = #versions
+    setChevronEnabled(Changelog.prevButton, index ~= nil and index < count)
+    setChevronEnabled(Changelog.nextButton, index ~= nil and index > 1)
+end
+
+local function stepVersion(delta)
+    local index, versions = selectedVersionIndex()
+    if not index then
+        return
+    end
+    local nextIndex = index + delta
+    if nextIndex < 1 or nextIndex > #versions then
+        return
+    end
+    Changelog.SelectVersion(versions[nextIndex])
+end
+
+local function updateVersionBar(data)
+    if not Changelog.versionLabel then
+        return
+    end
+
+    if type(data) ~= "table" or not data.version_string then
+        Changelog.versionLabel:SetText("")
+        if Changelog.versionRule then
+            Changelog.versionRule:Hide()
+        end
+        updateChevrons()
+        return
+    end
+
+    local versionLine = data.version_string
+    if data.release_date and data.release_date ~= "" then
+        versionLine = versionLine
+            .. " "
+            .. colorHex(Theme.colors.textMuted)
+            .. "- "
+            .. data.release_date
+            .. "|r"
+    end
+    Changelog.versionLabel:SetText(versionLine)
+    if Changelog.versionRule then
+        Changelog.versionRule:Show()
+    end
+    updateChevrons()
+end
+
 local function addBodyLine(used, text, variant, color)
     used = used + 1
     local line = acquireBodyLine(used, variant)
@@ -198,23 +267,12 @@ function Changelog.SelectVersion(versionKey)
     end
 
     local used = 0
-    Changelog.versionRuleIndex = nil
     Changelog.headerRuleIndex = nil
+    updateVersionBar(data)
     if type(data) ~= "table" or not data.version_string then
         used = addBodyLine(used, (L and L["EMPTY_CHANGELOG"]) or "No changelog entries.", "muted")
     else
         local header = Changelog.ResolveLocale(data.header)
-        local versionLine = data.version_string
-        if data.release_date and data.release_date ~= "" then
-            versionLine = versionLine
-                .. " "
-                .. colorHex(Theme.colors.textMuted)
-                .. "- "
-                .. data.release_date
-                .. "|r"
-        end
-        used = addBodyLine(used, versionLine, "heading")
-        Changelog.versionRuleIndex = used
 
         if header and header.title and header.title ~= "" then
             used = addBodyLine(
@@ -331,8 +389,47 @@ function Changelog.EnsureFrame(parent)
     local bodyCard = Theme.CreatePanel(panel, Theme.colors.cardInset, Theme.colors.borderMuted)
     bodyCard:SetPoint("TOPLEFT", railCard, "TOPRIGHT", 10, 0)
     bodyCard:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -12, 12)
+
+    local versionBar = CreateFrame("Frame", nil, bodyCard)
+    versionBar:SetPoint("TOPLEFT", bodyCard, "TOPLEFT", BODY_PAD, -10)
+    versionBar:SetPoint("TOPRIGHT", bodyCard, "TOPRIGHT", -BODY_PAD, -10)
+    versionBar:SetHeight(VERSION_BAR_HEIGHT)
+    Changelog.versionBar = versionBar
+
+    Changelog.nextButton = Theme.CreateButton(versionBar, CHEVRON_SIZE, CHEVRON_SIZE, ">", "secondary")
+    Changelog.nextButton:SetPoint("RIGHT", versionBar, "RIGHT", 0, 0)
+    Changelog.nextButton.labelOffsetX = 1
+    Changelog.nextButton.labelOffsetY = 1
+    Changelog.nextButton.labelColor = Theme.colors.accent
+    Changelog.nextButton.Label:SetPoint("CENTER", 1, 1)
+    Theme.SetFontColor(Changelog.nextButton.Label, Theme.colors.accent)
+    Changelog.nextButton:SetScript("OnClick", function()
+        stepVersion(-1)
+    end)
+
+    Changelog.prevButton = Theme.CreateButton(versionBar, CHEVRON_SIZE, CHEVRON_SIZE, "<", "secondary")
+    Changelog.prevButton:SetPoint("RIGHT", Changelog.nextButton, "LEFT", -4, 0)
+    Changelog.prevButton.labelOffsetX = 1
+    Changelog.prevButton.labelOffsetY = 1
+    Changelog.prevButton.labelColor = Theme.colors.accent
+    Changelog.prevButton.Label:SetPoint("CENTER", 1, 1)
+    Theme.SetFontColor(Changelog.prevButton.Label, Theme.colors.accent)
+    Changelog.prevButton:SetScript("OnClick", function()
+        stepVersion(1)
+    end)
+
+    Changelog.versionLabel = Theme.CreateText(versionBar, "", "heading")
+    Changelog.versionLabel:SetPoint("LEFT", versionBar, "LEFT", 0, 0)
+    Changelog.versionLabel:SetPoint("RIGHT", Changelog.prevButton, "LEFT", -8, 0)
+    Changelog.versionLabel:SetWordWrap(false)
+
+    Changelog.versionRule = createRule(bodyCard)
+    Changelog.versionRule:ClearAllPoints()
+    Changelog.versionRule:SetPoint("TOPLEFT", versionBar, "BOTTOMLEFT", 0, -6)
+    Changelog.versionRule:SetPoint("TOPRIGHT", versionBar, "BOTTOMRIGHT", 0, -6)
+
     Changelog.bodyScroll, Changelog.bodyContent = Theme.CreateStyledScrollArea(bodyCard, 400)
-    Changelog.bodyScroll:SetPoint("TOPLEFT", bodyCard, "TOPLEFT", BODY_PAD, -BODY_PAD)
+    Changelog.bodyScroll:SetPoint("TOPLEFT", Changelog.versionRule, "BOTTOMLEFT", 0, -10)
     Changelog.bodyScroll:SetPoint("BOTTOMRIGHT", bodyCard, "BOTTOMRIGHT", -22, BODY_PAD)
     Changelog.bodyScroll:HookScript("OnSizeChanged", function(_, width)
         if width and width > 0 then
@@ -341,7 +438,6 @@ function Changelog.EnsureFrame(parent)
         end
     end)
 
-    Changelog.versionRule = createRule(Changelog.bodyContent)
     Changelog.headerRule = createRule(Changelog.bodyContent)
 end
 

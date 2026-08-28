@@ -6,7 +6,7 @@ local Theme = addon.Theme
 local L
 
 local DISENCHANT_SPELL_ID = addon.DISENCHANT_SPELL_ID
-local BUTTON_NAME = "DisenchanterSecureButton"
+local BUTTON_NAME = "DisenchantumSecureButton"
 -- Only auto-loot the window that opens right after our DE, not world loot.
 local LOOT_PENDING_SECONDS = 2
 

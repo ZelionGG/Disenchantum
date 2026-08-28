@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for Disenchanter
+about: Suggest an idea for Disenchantum
 title: "[Enhancement] "
 labels: ''
 assignees: ZelionGG

@@ -6,11 +6,11 @@ addon.Changelog["1.0.0"] = {
     header = {
         enUS = {
             title = "Version 1.0.0 - Initial release",
-            text = "First Disenchanter release: queue bag items and disenchant them with one secure click per item.",
+            text = "First Disenchantum release: queue bag items and disenchant them with one secure click per item.",
         },
         frFR = {
             title = "Version 1.0.0",
-            text = "Première version de Disenchanter : mettez des objets de sac en file et désenchantez-les d'un clic sécurisé par objet.",
+            text = "Première version de Disenchantum : mettez des objets de sac en file et désenchantez-les d'un clic sécurisé par objet.",
         },
     },
     important = {
@@ -19,10 +19,10 @@ addon.Changelog["1.0.0"] = {
     },
     new = {
         enUS = {
-            "Bag queue with quality filters and a secure [Disenchant] button (one click per item).",
+            "Bag queue with quality, expansion and item level filters and a [Disenchant] button (one click per item).",
         },
         frFR = {
-            "File depuis les sacs, filtres de qualité, et bouton [Désenchanter] sécurisé (un clic par objet).",
+            "File d'attente des objets de sac à désenchanter, filtres de qualité, et bouton [Désenchanter] (un clic par objet).",
         },
     },
     bugfix = {

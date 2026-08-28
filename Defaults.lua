@@ -11,7 +11,7 @@ addon.AceDBDefaults = {
         filters = {
             uncommon = true,
             rare = true,
-            epic = false,
+            epic = true,
             currentExpansionOnly = false,
             expansions = {},
         },
@@ -69,7 +69,7 @@ function addon.NormalizeDatabase(database)
         filters.rare = true
     end
     if filters.epic == nil then
-        filters.epic = false
+        filters.epic = true
     end
     if filters.currentExpansionOnly == nil then
         filters.currentExpansionOnly = false
@@ -115,7 +115,7 @@ end
 
 function addon.InitializeDatabase()
     local AceDB = LibStub:GetLibrary("AceDB-3.0")
-    local database = AceDB:New("DisenchanterDB", addon.AceDBDefaults, true)
+    local database = AceDB:New("DisenchantumDB", addon.AceDBDefaults, true)
     addon.db = database
     addon.NormalizeDatabase(database)
     return database

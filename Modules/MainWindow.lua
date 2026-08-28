@@ -1207,7 +1207,7 @@ function MainWindow:Initialize()
 
     L = addon.L
 
-    local frame = CreateFrame("Frame", "DisenchanterWindow", UIParent, "BackdropTemplate")
+    local frame = CreateFrame("Frame", "DisenchantumWindow", UIParent, "BackdropTemplate")
     Theme.ApplySurface(frame, Theme.colors.window, Theme.colors.border)
     frame:SetSize(WINDOW_WIDTH, WINDOW_HEIGHT)
     frame:SetPoint("CENTER")
@@ -1301,7 +1301,7 @@ function MainWindow:Initialize()
     end)
     subtitle:SetPoint("RIGHT", self.changelogButton, "LEFT", -12, 0)
 
-    table.insert(UISpecialFrames, "DisenchanterWindow")
+    table.insert(UISpecialFrames, "DisenchantumWindow")
     self.frame = frame
 
     self.sidebar = Theme.CreatePanel(frame, Theme.colors.sidebar, Theme.colors.borderSoft)

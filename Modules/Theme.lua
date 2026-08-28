@@ -137,7 +137,7 @@ function Theme.UpdateButtonColors(button)
 
     Theme.ApplySurface(button, style.bg, style.border)
     if button.Label then
-        Theme.SetFontColor(button.Label, style.text)
+        Theme.SetFontColor(button.Label, button.labelColor or style.text)
     end
     if button.Title then
         Theme.SetFontColor(button.Title, Theme.colors.text)
