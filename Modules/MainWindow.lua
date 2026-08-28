@@ -1234,6 +1234,9 @@ function MainWindow:Initialize()
     end)
     frame:SetScript("OnHide", function()
         MainWindow:CloseBagMenus()
+        if addon.Changelog then
+            addon.Changelog.Hide()
+        end
     end)
     frame:SetScript("OnReceiveDrag", function()
         enqueueCursorItem()
@@ -1265,6 +1268,8 @@ function MainWindow:Initialize()
 
     local subtitle = Theme.CreateText(header, L["WINDOW_SUBTITLE"], "muted")
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+    subtitle:SetJustifyH("LEFT")
+    subtitle:SetWordWrap(false)
 
     local accentLine = header:CreateTexture(nil, "BORDER")
     Theme.ApplyGradient(accentLine, "HORIZONTAL", Theme.colors.accent, Theme.colors.accentAlt)
@@ -1273,7 +1278,7 @@ function MainWindow:Initialize()
 
     local closeButton = CreateFrame("Button", nil, header)
     closeButton:SetSize(24, 24)
-    closeButton:SetPoint("TOPRIGHT", header, "TOPRIGHT", -14, -10)
+    closeButton:SetPoint("RIGHT", header, "RIGHT", -14, 0)
     closeButton.Text = Theme.CreateText(closeButton, "X", "heading")
     closeButton.Text:SetPoint("CENTER", closeButton, "CENTER", 0, -1)
     Theme.SetFontColor(closeButton.Text, Theme.colors.accentAlt)
@@ -1286,6 +1291,15 @@ function MainWindow:Initialize()
     closeButton:SetScript("OnClick", function()
         frame:Hide()
     end)
+
+    self.changelogButton = Theme.CreateButton(header, 118, 26, L["BUTTON_CHANGELOG"], "secondary")
+    self.changelogButton:SetPoint("RIGHT", closeButton, "LEFT", -16, 0)
+    self.changelogButton.Label:SetWordWrap(false)
+    self.changelogButton:SetScript("OnClick", function()
+        MainWindow:CloseBagMenus()
+        addon.Changelog.Toggle()
+    end)
+    subtitle:SetPoint("RIGHT", self.changelogButton, "LEFT", -12, 0)
 
     table.insert(UISpecialFrames, "DisenchanterWindow")
     self.frame = frame
@@ -1682,6 +1696,9 @@ function MainWindow:Initialize()
     watermarkTexture:SetTexture(mediaTexture("icon.png"), nil, nil, "LINEAR")
     watermarkTexture:SetDesaturated(true)
     watermarkTexture:SetAlpha(0.025)
+
+    addon.Changelog.headerButton = self.changelogButton
+    addon.Changelog.EnsureFrame(frame)
 
     self:ApplyWindowScale()
 end

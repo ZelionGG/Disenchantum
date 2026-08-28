@@ -20,5 +20,7 @@ Modules/Theme.lua
 Modules/Eligibility.lua
 Modules/Queue.lua
 Modules/SecureDisenchant.lua
+Modules/Changelog/Changelog.lua
+Modules/Changelog/Load_Changelog.xml
 Modules/MainWindow.lua
 Core.lua
