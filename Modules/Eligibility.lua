@@ -30,13 +30,6 @@ function Eligibility.PlayerKnowsDisenchant()
     return false
 end
 
-function Eligibility.GetSpellInfo()
-    if not C_Spell or not C_Spell.GetSpellInfo then
-        return nil
-    end
-    return C_Spell.GetSpellInfo(DISENCHANT_SPELL_ID)
-end
-
 function Eligibility.GetSpellName()
     if C_Spell and C_Spell.GetSpellName then
         local name = C_Spell.GetSpellName(DISENCHANT_SPELL_ID)
@@ -44,9 +37,11 @@ function Eligibility.GetSpellName()
             return name
         end
     end
-    local info = Eligibility.GetSpellInfo()
-    if info then
-        return info.name
+    if C_Spell and C_Spell.GetSpellInfo then
+        local info = C_Spell.GetSpellInfo(DISENCHANT_SPELL_ID)
+        if info then
+            return info.name
+        end
     end
     return nil
 end
@@ -121,6 +116,7 @@ function Eligibility.MatchesExpansionFilter(expansionID, filters)
     end
 
     if expansionID == nil then
+        -- Item info not loaded yet; keep the row rather than hiding it.
         return true
     end
 
@@ -141,6 +137,7 @@ function Eligibility.MatchesExpansionFilter(expansionID, filters)
 end
 
 local function tooltipBlocksDisenchant(bag, slot)
+    -- Soulbound / vendor items that show ITEM_DISENCHANT_NOT_DISENCHANTABLE.
     if not C_TooltipInfo or not C_TooltipInfo.GetBagItem then
         return false
     end
@@ -387,6 +384,8 @@ end
 
 function Eligibility.CollectSnapshot(options)
     options = options or {}
+    -- skipGuids: omit from the bag list (queued + just consumed).
+    -- countSkipGuids: still count toward filter totals until the item leaves the bag.
     local skipGuids = options.skipGuids or {}
     local countSkipGuids = options.countSkipGuids or {}
     local items = {}
@@ -466,6 +465,7 @@ local function compareNames(left, right)
 end
 
 local function firstLetter(name)
+    -- string.sub(1, 1) splits UTF-8 names (frFR grouping).
     if not name or name == "" then
         return ""
     end
@@ -659,8 +659,4 @@ function Eligibility.BuildBagDisplayList(items, groupBy)
         rows[#rows + 1] = item
     end
     return rows
-end
-
-function Eligibility.ScanBags(options)
-    return Eligibility.CollectSnapshot(options).items
 end

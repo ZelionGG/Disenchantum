@@ -7,6 +7,7 @@ local L
 
 local DISENCHANT_SPELL_ID = addon.DISENCHANT_SPELL_ID
 local BUTTON_NAME = "DisenchanterSecureButton"
+-- Only auto-loot the window that opens right after our DE, not world loot.
 local LOOT_PENDING_SECONDS = 2
 
 local SecureDisenchant = {
@@ -19,13 +20,17 @@ local SecureDisenchant = {
 
 addon.SecureDisenchant = SecureDisenchant
 
+local Session = {
+    itemsDisenchanted = 0,
+    reagents = {},
+    -- One record pass per loot window (LOOT_READY then LOOT_OPENED).
+    lootRecorded = false,
+}
+
+addon.Session = Session
+
 local function getButton()
     return SecureDisenchant.button
-end
-
-local function formatRemaining(remaining)
-    local text = (L and L["FMT_CAST_REMAINING"]) or "%.1fs"
-    return text:format(remaining)
 end
 
 local function disenchantLabel()
@@ -33,6 +38,7 @@ local function disenchantLabel()
 end
 
 local function setHoldHover(active)
+    -- Keep primary hover chrome while Disenchant is casting, even if the cursor left.
     local button = getButton()
     if not button then
         return
@@ -45,10 +51,81 @@ local function setHoldHover(active)
     Theme.UpdateButtonColors(button)
 end
 
-local function refreshQueueCount()
-    local window = addon.MainWindow
-    if window and window.frame and window.frame:IsShown() then
-        window:RefreshQueueCount()
+function Session.Reset()
+    Session.itemsDisenchanted = 0
+    wipe(Session.reagents)
+    Session.lootRecorded = false
+    if addon.MainWindow and addon.MainWindow.RefreshSession then
+        addon.MainWindow:RefreshSession()
+    end
+end
+
+function Session.GetReagents()
+    local list = {}
+    for _, entry in pairs(Session.reagents) do
+        list[#list + 1] = entry
+    end
+    table.sort(list, function(left, right)
+        if left.count ~= right.count then
+            return left.count > right.count
+        end
+        local leftName = left.itemName or ""
+        local rightName = right.itemName or ""
+        if strcmputf8i then
+            return strcmputf8i(leftName, rightName) < 0
+        end
+        return leftName < rightName
+    end)
+    return list
+end
+
+function Session.RecordLootWindow()
+    if Session.lootRecorded then
+        return
+    end
+
+    local slotCount = GetNumLootItems and GetNumLootItems() or 0
+    if slotCount <= 0 then
+        return
+    end
+
+    for slotIndex = 1, slotCount do
+        local slotType = GetLootSlotType and GetLootSlotType(slotIndex)
+        if slotType == Enum.LootSlotType.Item then
+            local texture, itemName, quantity, currencyID, quality = GetLootSlotInfo(slotIndex)
+            if not currencyID then
+                local link = GetLootSlotLink and GetLootSlotLink(slotIndex)
+                local itemID, icon
+                if link then
+                    itemID, _, _, _, icon = C_Item.GetItemInfoInstant(link)
+                end
+                if itemID then
+                    local entry = Session.reagents[itemID]
+                    if not entry then
+                        local expansionID = select(15, C_Item.GetItemInfo(itemID))
+                        if expansionID == nil and C_Item.RequestLoadItemDataByID then
+                            C_Item.RequestLoadItemDataByID(itemID)
+                        end
+                        entry = {
+                            itemID = itemID,
+                            itemName = itemName,
+                            itemLink = link,
+                            icon = icon or texture,
+                            quality = quality,
+                            expansionID = expansionID,
+                            count = 0,
+                        }
+                        Session.reagents[itemID] = entry
+                    end
+                    entry.count = entry.count + (quantity or 1)
+                end
+            end
+        end
+    end
+
+    Session.lootRecorded = true
+    if addon.MainWindow and addon.MainWindow.RefreshSession then
+        addon.MainWindow:RefreshSession()
     end
 end
 
@@ -121,8 +198,8 @@ local function hideProgressFill(button)
 end
 
 local function applyCastFill(button)
-    Theme.ApplyGradient(button.cooldownFill, "VERTICAL", Theme.colors.accentDim, Theme.colors.accentAlt)
-    button.cooldownFill:SetAlpha(0.85)
+    button.cooldownFill:SetColorTexture(Theme.UnpackColor(Theme.colors.accent))
+    button.cooldownFill:SetAlpha(0.55)
 end
 
 local function setProgressFill(button, ratio, isCast)
@@ -177,7 +254,8 @@ function SecureDisenchant.UpdateProgress()
             local elapsed = 1 - (remaining / duration)
             setProgressFill(button, math.max(0, math.min(1, elapsed)), true)
             local base = button.baseLabel or disenchantLabel()
-            button:SetText(base .. "  ·  " .. formatRemaining(remaining))
+            local fmt = (L and L["FMT_CAST_REMAINING"]) or "%.1fs"
+            button:SetText(base .. "  ·  " .. fmt:format(remaining))
             setHoldHover(true)
             return
         end
@@ -252,7 +330,10 @@ function SecureDisenchant.OnCastStart(spellID)
     SecureDisenchant.allowGcdFill = false
     hideProgressFill(getButton())
     setHoldHover(true)
-    refreshQueueCount()
+    local window = addon.MainWindow
+    if window and window.frame and window.frame:IsShown() then
+        window:RefreshQueueCount()
+    end
 end
 
 function SecureDisenchant.OnCastStop(spellID, interrupted)
@@ -264,7 +345,10 @@ function SecureDisenchant.OnCastStop(spellID, interrupted)
         hideProgressFill(getButton())
     end
     setHoldHover(false)
-    refreshQueueCount()
+    local window = addon.MainWindow
+    if window and window.frame and window.frame:IsShown() then
+        window:RefreshQueueCount()
+    end
 end
 
 function SecureDisenchant.OnCastSucceeded(spellID)
@@ -272,9 +356,15 @@ function SecureDisenchant.OnCastSucceeded(spellID)
         return
     end
 
+    -- GCD fill only after a successful DE; interrupts must not show it.
     SecureDisenchant.allowGcdFill = true
     SecureDisenchant.pendingLoot = true
     SecureDisenchant.pendingLootUntil = GetTime() + LOOT_PENDING_SECONDS
+    Session.lootRecorded = false
+    Session.itemsDisenchanted = Session.itemsDisenchanted + 1
+    if addon.MainWindow and addon.MainWindow.RefreshSession then
+        addon.MainWindow:RefreshSession()
+    end
     local current = Queue.GetCurrent()
     if current then
         Queue.MarkConsumed(current.guid)
@@ -295,6 +385,12 @@ function SecureDisenchant.TryLoot()
         return
     end
 
+    Session.RecordLootWindow()
+
+    if addon.db and addon.db.global and addon.db.global.autoLootReagents == false then
+        return
+    end
+
     local slotCount = GetNumLootItems and GetNumLootItems() or 0
     for slotIndex = 1, slotCount do
         LootSlot(slotIndex)
@@ -304,6 +400,7 @@ end
 function SecureDisenchant.OnLootClosed()
     SecureDisenchant.pendingLoot = false
     SecureDisenchant.pendingLootUntil = 0
+    Session.lootRecorded = false
 end
 
 function SecureDisenchant.OnLeaveCombat()

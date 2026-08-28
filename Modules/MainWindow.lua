@@ -15,6 +15,8 @@ local BAG_HEADER_SPACING = 32
 local QUEUE_ROW_SPACING = 64
 local LIST_TOP_PADDING = 10
 local ITEM_ICON_SIZE = 40
+local SESSION_CHIP_SIZE = 28
+local SESSION_CHIP_GAP = 6
 local QUEUE_DRAG_THRESHOLD = 6
 local QUEUE_DOUBLE_CLICK = 0.35
 
@@ -38,20 +40,121 @@ local function showItemTooltip(owner, bag, slot, itemLink)
     GameTooltip:Show()
 end
 
+local REAGENT_TOOLTIP_ICON = {
+    width = 14,
+    height = 14,
+    anchor = Enum.TooltipTextureAnchor and Enum.TooltipTextureAnchor.LeftCenter or nil,
+    margin = { left = 0, right = 6, top = 0, bottom = 0 },
+}
+
+local function groupReagentsByExpansion(reagents)
+    local groupsByID = {}
+    local order = {}
+    for index = 1, #reagents do
+        local entry = reagents[index]
+        local expansionID = entry.expansionID
+        if expansionID == nil and entry.itemID then
+            expansionID = select(15, C_Item.GetItemInfo(entry.itemID))
+            entry.expansionID = expansionID
+        end
+        local key = expansionID
+        if key == nil then
+            key = "other"
+        end
+        local group = groupsByID[key]
+        if not group then
+            group = {
+                key = key,
+                expansionID = expansionID,
+                entries = {},
+            }
+            groupsByID[key] = group
+            order[#order + 1] = group
+        end
+        group.entries[#group.entries + 1] = entry
+    end
+
+    table.sort(order, function(left, right)
+        if left.expansionID == nil then
+            return false
+        end
+        if right.expansionID == nil then
+            return true
+        end
+        return left.expansionID > right.expansionID
+    end)
+
+    for index = 1, #order do
+        table.sort(order[index].entries, function(left, right)
+            if left.count ~= right.count then
+                return left.count > right.count
+            end
+            local leftName = left.itemName or ""
+            local rightName = right.itemName or ""
+            if strcmputf8i then
+                return strcmputf8i(leftName, rightName) < 0
+            end
+            return leftName < rightName
+        end)
+    end
+
+    return order
+end
+
 local function hideTooltip()
     if GameTooltip then
         GameTooltip:Hide()
     end
 end
 
-local function colorizeByQuality(fontString, text, quality)
-    fontString:SetText(text or "")
-    if quality and C_Item.GetItemQualityColor then
-        local r, g, b = C_Item.GetItemQualityColor(quality)
-        fontString:SetTextColor(r, g, b, 1)
-    else
-        Theme.SetFontColor(fontString, Theme.colors.text)
+local function showSessionTooltip(owner)
+    if not owner or not GameTooltip then
+        return
     end
+
+    L = L or addon.L
+    local session = addon.Session
+    local itemCount = (session and session.itemsDisenchanted) or 0
+    local reagents = (session and session.GetReagents and session.GetReagents()) or {}
+    if itemCount == 0 and #reagents == 0 then
+        return
+    end
+
+    GameTooltip:SetOwner(owner, "ANCHOR_TOP")
+    GameTooltip:AddLine((L["FMT_SESSION_ITEMS"]):format(itemCount))
+
+    local groups = groupReagentsByExpansion(reagents)
+    for groupIndex = 1, #groups do
+        local group = groups[groupIndex]
+        local heading = Eligibility.GetExpansionName(group.expansionID) or OTHER
+        local hr, hg, hb = Theme.UnpackColor(Theme.colors.accent)
+        if groupIndex > 1 then
+            GameTooltip:AddLine(" ")
+        end
+        GameTooltip:AddLine(heading, hr, hg, hb)
+
+        for index = 1, #group.entries do
+            local entry = group.entries[index]
+            local r, g, b = 1, 1, 1
+            if entry.quality and C_Item.GetItemQualityColor then
+                r, g, b = C_Item.GetItemQualityColor(entry.quality)
+            end
+            GameTooltip:AddDoubleLine(
+                entry.itemName or "",
+                (L["FMT_SESSION_CHIP_COUNT"]):format(entry.count or 0),
+                r,
+                g,
+                b,
+                1,
+                1,
+                1
+            )
+            if GameTooltip.AddTexture and entry.icon then
+                GameTooltip:AddTexture(entry.icon, REAGENT_TOOLTIP_ICON)
+            end
+        end
+    end
+    GameTooltip:Show()
 end
 
 local function itemLevelText(entry)
@@ -62,7 +165,13 @@ local function itemLevelText(entry)
 end
 
 local function applyRowItemVisuals(row)
-    colorizeByQuality(row.Title, row.itemName, row.quality)
+    row.Title:SetText(row.itemName or "")
+    if row.quality and C_Item.GetItemQualityColor then
+        local r, g, b = C_Item.GetItemQualityColor(row.quality)
+        row.Title:SetTextColor(r, g, b, 1)
+    else
+        Theme.SetFontColor(row.Title, Theme.colors.text)
+    end
 
     if row.Meta then
         local parts = {}
@@ -115,8 +224,106 @@ end
 function MainWindow.CollectSnapshot()
     return Eligibility.CollectSnapshot({
         skipGuids = Queue.GetSkipGuids(),
-        countSkipGuids = Queue.GetConsumedGuids(),
+        countSkipGuids = Queue.consumedGuids,
     })
+end
+
+function MainWindow:AcquireSessionChip(index)
+    local chip = self.sessionChipPool[index]
+    if chip then
+        return chip
+    end
+
+    chip = CreateFrame("Button", nil, self.sessionChips)
+    chip:SetSize(SESSION_CHIP_SIZE + 2, SESSION_CHIP_SIZE + 2)
+
+    chip.IconWrap = Theme.CreateItemIcon(chip, SESSION_CHIP_SIZE)
+    chip.IconWrap:SetAllPoints(chip)
+    chip.IconWrap:EnableMouse(false)
+
+    chip.Count = chip.IconWrap:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+    chip.Count:SetPoint("BOTTOMRIGHT", chip.IconWrap, "BOTTOMRIGHT", -1, 1)
+    chip.Count:SetJustifyH("RIGHT")
+
+    chip:SetScript("OnEnter", function(selfChip)
+        if selfChip.isOverflow then
+            showSessionTooltip(selfChip)
+        else
+            showItemTooltip(selfChip, nil, nil, selfChip.itemLink)
+        end
+    end)
+    chip:SetScript("OnLeave", hideTooltip)
+
+    self.sessionChipPool[index] = chip
+    return chip
+end
+
+function MainWindow:RefreshSession()
+    if not self.sessionCard or not self.sessionCountHit then
+        return
+    end
+
+    L = L or addon.L
+    local session = addon.Session
+    local itemCount = (session and session.itemsDisenchanted) or 0
+    self.sessionCount:SetText((L["FMT_SESSION_ITEMS"]):format(itemCount))
+    local countWidth = math.max(72, (self.sessionCount:GetStringWidth() or 72) + 4)
+    self.sessionCountHit:SetSize(countWidth, 22)
+
+    local reagents = (session and session.GetReagents and session.GetReagents()) or {}
+    local hasReagents = #reagents > 0
+    self.sessionEmpty:SetShown(itemCount == 0 and not hasReagents)
+    self.sessionChips:SetShown(hasReagents)
+
+    local chipWidth = SESSION_CHIP_SIZE + 2
+    local stride = chipWidth + SESSION_CHIP_GAP
+    local available = self.sessionChips:GetWidth() or 0
+    local shown = #reagents
+    local overflow = 0
+    if available > 0 and #reagents > 0 then
+        local maxChips = math.max(1, math.floor((available + SESSION_CHIP_GAP) / stride))
+        if #reagents > maxChips then
+            shown = math.max(0, maxChips - 1)
+            overflow = #reagents - shown
+        end
+    end
+
+    local pool = self.sessionChipPool
+    for index = 1, shown do
+        local entry = reagents[index]
+        local chip = self:AcquireSessionChip(index)
+        chip.isOverflow = false
+        chip.itemLink = entry.itemLink
+        chip.IconWrap.Texture:Show()
+        chip.IconWrap:SetIcon(entry.icon)
+        chip.IconWrap:SetQuality(entry.quality)
+        chip.Count:ClearAllPoints()
+        chip.Count:SetPoint("BOTTOMRIGHT", chip.IconWrap, "BOTTOMRIGHT", -1, 1)
+        chip.Count:SetText((L["FMT_SESSION_CHIP_COUNT"]):format(entry.count))
+        chip:ClearAllPoints()
+        chip:SetPoint("LEFT", self.sessionChips, "LEFT", (index - 1) * stride, 0)
+        chip:Show()
+    end
+
+    local used = shown
+    if overflow > 0 then
+        used = shown + 1
+        local chip = self:AcquireSessionChip(used)
+        chip.isOverflow = true
+        chip.itemLink = nil
+        chip.IconWrap.Texture:Hide()
+        chip.IconWrap:SetQuality(nil)
+        chip.Count:ClearAllPoints()
+        chip.Count:SetPoint("CENTER", chip.IconWrap, "CENTER", 0, 0)
+        chip.Count:SetText((L["FMT_SESSION_MORE"]):format(overflow))
+        chip:ClearAllPoints()
+        chip:SetPoint("LEFT", self.sessionChips, "LEFT", shown * stride, 0)
+        chip:Show()
+    end
+
+    for index = used + 1, #pool do
+        pool[index]:Hide()
+    end
 end
 
 function MainWindow:RefreshQueueCount(snapshot)
@@ -477,7 +684,7 @@ function MainWindow:RefreshQueueDragHighlights()
             elseif row.isHovered and not self.queueDragState then
                 Theme.ApplySurface(row, Theme.colors.cardSoft, Theme.colors.accentAlt)
             elseif row.queueIndex == 1 then
-                Theme.SetCardTone(row, "success")
+                Theme.SetCardTone(row, "accent")
             else
                 Theme.ApplySurface(row, Theme.colors.card, Theme.colors.borderSoft)
             end
@@ -763,6 +970,9 @@ function MainWindow:RefreshFilters(snapshot)
     if self.compartmentToggle then
         self.compartmentToggle:SetCheckedState(addon.db.global.minimap.showInCompartment == true)
     end
+    if self.autoLootToggle then
+        self.autoLootToggle:SetCheckedState(addon.db.global.autoLootReagents ~= false)
+    end
 end
 
 function MainWindow:Refresh()
@@ -775,6 +985,7 @@ function MainWindow:Refresh()
     self:RefreshBagList(snapshot)
     self:RefreshQueueList()
     self:RefreshQueueCount(snapshot)
+    self:RefreshSession()
     SecureDisenchant.UpdateVisual()
 end
 
@@ -798,20 +1009,6 @@ function MainWindow:Open()
     self.frame:Show()
     self:ApplyWindowScale()
     self:Refresh()
-end
-
-local function qualityFilterCount(filters)
-    local count = 0
-    if filters.uncommon then
-        count = count + 1
-    end
-    if filters.rare then
-        count = count + 1
-    end
-    if filters.epic then
-        count = count + 1
-    end
-    return count
 end
 
 function MainWindow:Initialize()
@@ -880,7 +1077,9 @@ function MainWindow:Initialize()
     local subtitle = Theme.CreateText(header, L["WINDOW_SUBTITLE"], "muted")
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
 
-    local accentLine = Theme.CreateAccentLine(header, 180)
+    local accentLine = header:CreateTexture(nil, "BORDER")
+    Theme.ApplyGradient(accentLine, "HORIZONTAL", Theme.colors.accent, Theme.colors.accentAlt)
+    accentLine:SetSize(180, 2)
     accentLine:SetPoint("BOTTOMLEFT", header, "BOTTOMLEFT", 14, 0)
 
     local closeButton = CreateFrame("Button", nil, header)
@@ -995,9 +1194,62 @@ function MainWindow:Initialize()
     deButton:SetPoint("BOTTOMRIGHT", self.workspace, "BOTTOMRIGHT", -16, 16)
     deButton:SetHeight(48)
 
+    self.sessionCard = Theme.CreateCard(self.workspace, nil, 44)
+    self.sessionCard:SetPoint("BOTTOMLEFT", deButton, "TOPLEFT", 0, 10)
+    self.sessionCard:SetPoint("BOTTOMRIGHT", deButton, "TOPRIGHT", 0, 10)
+
+    self.sessionCountHit = CreateFrame("Button", nil, self.sessionCard)
+    self.sessionCountHit:SetPoint("LEFT", self.sessionCard, "LEFT", 12, 0)
+    self.sessionCountHit:SetSize(72, 22)
+    self.sessionCountHit:SetScript("OnEnter", function(hit)
+        showSessionTooltip(hit)
+    end)
+    self.sessionCountHit:SetScript("OnLeave", hideTooltip)
+
+    self.sessionCount = Theme.CreateText(self.sessionCountHit, "", "label")
+    self.sessionCount:SetAllPoints(self.sessionCountHit)
+    self.sessionCount:SetJustifyH("LEFT")
+    self.sessionCount:SetWordWrap(false)
+    Theme.SetFontColor(self.sessionCount, Theme.colors.textMuted)
+
+    self.sessionReset = Theme.CreateButton(self.sessionCard, 96, 26, RESET, "secondary")
+    self.sessionReset:SetPoint("RIGHT", self.sessionCard, "RIGHT", -10, 0)
+    self.sessionReset:SetScript("OnClick", function()
+        addon.Session.Reset()
+    end)
+
+    self.autoLootToggle = Theme.CreateCheckbox(self.sessionCard, 168, L["LABEL_AUTO_LOOT_REAGENTS"])
+    self.autoLootToggle:SetPoint("RIGHT", self.sessionReset, "LEFT", -4, 0)
+    self.autoLootToggle:SetScript("OnClick", function(checkbox)
+        local currentlyEnabled = checkbox:GetCheckedState()
+        addon.db.global.autoLootReagents = not currentlyEnabled
+        checkbox:SetCheckedState(not currentlyEnabled)
+    end)
+
+    self.sessionEmpty = Theme.CreateText(self.sessionCard, L["EMPTY_SESSION"], "muted")
+    self.sessionEmpty:SetPoint("LEFT", self.sessionCountHit, "RIGHT", 12, 0)
+    self.sessionEmpty:SetPoint("RIGHT", self.autoLootToggle, "LEFT", -10, 0)
+    self.sessionEmpty:SetJustifyH("LEFT")
+    self.sessionEmpty:SetWordWrap(false)
+
+    self.sessionChips = CreateFrame("Frame", nil, self.sessionCard)
+    self.sessionChips:SetPoint("LEFT", self.sessionCountHit, "RIGHT", 12, 0)
+    self.sessionChips:SetPoint("RIGHT", self.autoLootToggle, "LEFT", -10, 0)
+    self.sessionChips:SetHeight(SESSION_CHIP_SIZE + 2)
+    self.sessionChips:SetClipsChildren(true)
+    self.sessionChipPool = {}
+    self.sessionChips:HookScript("OnSizeChanged", function()
+        if MainWindow._refreshingSession then
+            return
+        end
+        MainWindow._refreshingSession = true
+        MainWindow:RefreshSession()
+        MainWindow._refreshingSession = false
+    end)
+
     self.queueScrollCard = Theme.CreatePanel(self.workspace, Theme.colors.cardInset, Theme.colors.borderMuted)
     self.queueScrollCard:SetPoint("TOPLEFT", queueToolbar, "BOTTOMLEFT", 0, -12)
-    self.queueScrollCard:SetPoint("BOTTOMRIGHT", deButton, "TOPRIGHT", 0, 12)
+    self.queueScrollCard:SetPoint("BOTTOMRIGHT", self.sessionCard, "TOPRIGHT", 0, 12)
     self.queueScrollCard:EnableMouse(true)
     self.queueScrollCard:SetScript("OnMouseUp", function()
         self:EndQueueDrag()
@@ -1050,7 +1302,18 @@ function MainWindow:Initialize()
         checkbox:SetScript("OnClick", function(selfBox)
             local filters = addon.db.global.filters
             local nextValue = not filters[key]
-            if not nextValue and qualityFilterCount(filters) <= 1 then
+            local enabled = 0
+            if filters.uncommon then
+                enabled = enabled + 1
+            end
+            if filters.rare then
+                enabled = enabled + 1
+            end
+            if filters.epic then
+                enabled = enabled + 1
+            end
+            if not nextValue and enabled <= 1 then
+                -- Keep at least one quality selected.
                 selfBox:SetCheckedState(true)
                 return
             end

@@ -93,13 +93,6 @@ function Theme.CreateText(parent, text, variant)
     return label
 end
 
-function Theme.CreateAccentLine(parent, width)
-    local texture = parent:CreateTexture(nil, "BORDER")
-    Theme.ApplyGradient(texture, "HORIZONTAL", Theme.colors.accent, Theme.colors.accentAlt)
-    texture:SetSize(width, 2)
-    return texture
-end
-
 function Theme.UpdateButtonColors(button)
     local colors = Theme.colors
     local variant = button.variant or "secondary"
@@ -339,7 +332,7 @@ end
 function Theme.SetCardTone(card, tone)
     local border = Theme.colors.borderSoft
     if tone == "accent" then
-        border = Theme.colors.accentSoft
+        border = Theme.colors.accent
     elseif tone == "success" then
         border = Theme.colors.success
     elseif tone == "warning" then

@@ -19,6 +19,7 @@ addon.AceDBDefaults = {
             orderBy = "name",
             groupBy = "none",
         },
+        autoLootReagents = true,
     },
 }
 
@@ -73,6 +74,10 @@ function addon.NormalizeDatabase(database)
         filters.currentExpansionOnly = false
     end
     ensureExpansionFilters(filters)
+
+    if database.global.autoLootReagents == nil then
+        database.global.autoLootReagents = true
+    end
 
     database.global.bagView = database.global.bagView or {}
     if addon.Eligibility and addon.Eligibility.NormalizeBagView then

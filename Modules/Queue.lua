@@ -6,6 +6,7 @@ local Queue = {
     entries = {},
     listeners = {},
     suppress = 0,
+    -- Hide a just-disenchanted GUID from Bags until it actually leaves the bag.
     consumedGuids = {},
 }
 
@@ -64,23 +65,14 @@ function Queue.IsQueued(guid)
     return false
 end
 
-function Queue.GetQueuedGuids()
-    local guids = {}
+function Queue.GetSkipGuids()
+    local skip = {}
     for index = 1, #Queue.entries do
         local guid = Queue.entries[index].guid
         if guid then
-            guids[guid] = true
+            skip[guid] = true
         end
     end
-    return guids
-end
-
-function Queue.GetConsumedGuids()
-    return Queue.consumedGuids
-end
-
-function Queue.GetSkipGuids()
-    local skip = Queue.GetQueuedGuids()
     for guid in pairs(Queue.consumedGuids) do
         skip[guid] = true
     end
@@ -94,6 +86,7 @@ function Queue.MarkConsumed(guid)
 end
 
 function Queue.SweepConsumed()
+    -- Drop the hide once the item is gone (loot taken / bag update).
     for guid in pairs(Queue.consumedGuids) do
         if not Queue.FindLocationByGUID(guid) then
             Queue.consumedGuids[guid] = nil
@@ -169,9 +162,9 @@ end
 
 function Queue.AddAllMatching()
     local added = 0
-    local items = Eligibility.ScanBags({
+    local items = Eligibility.CollectSnapshot({
         skipGuids = Queue.GetSkipGuids(),
-    })
+    }).items
     local orderBy = "name"
     local groupBy = "none"
     if addon.db and addon.db.global and addon.db.global.bagView then
