@@ -300,7 +300,7 @@ function Changelog.SelectVersion(versionKey)
                 used = addBodyLine(used, section.label, "heading")
                 local text = ""
                 for lineIndex = 1, #items do
-                    text = text .. lineIndex .. ". " .. colorBrackets(items[lineIndex], Theme.colors.accentAlt)
+                    text = text .. "    - " .. colorBrackets(items[lineIndex], Theme.colors.accentAlt)
                     if lineIndex < #items then
                         text = text .. "\n"
                     end
