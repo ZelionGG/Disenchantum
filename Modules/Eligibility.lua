@@ -664,8 +664,3 @@ end
 function Eligibility.ScanBags(options)
     return Eligibility.CollectSnapshot(options).items
 end
-
-function Eligibility.GetFilterCounts()
-    local snapshot = Eligibility.CollectSnapshot()
-    return snapshot.qualityCounts, snapshot.expansionCounts, snapshot.currentExpansionCount
-end

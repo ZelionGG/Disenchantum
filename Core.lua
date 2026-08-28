@@ -13,11 +13,6 @@ BINDING_HEADER_DISENCHANTER = L["BINDING_HEADER"]
 _G["BINDING_NAME_CLICK DisenchanterSecureButton:LeftButton"] = L["BINDING_CAST"]
 
 local eventFrame = CreateFrame("Frame")
-addon.eventFrame = eventFrame
-
-function Disenchanter_OnAddonCompartmentClick()
-    MainWindow:Toggle()
-end
 
 function addon.UpdateMinimapIcon()
     local LDBIcon = LibStub("LibDBIcon-1.0", true)
@@ -87,14 +82,12 @@ local pendingItemInfoRefresh = false
 local professionButton
 local professionHooksRegistered = false
 
-local function refreshRuntime(reason)
+local function refreshRuntime()
     Eligibility.InvalidateCache()
     Queue.RefreshLocations()
     SecureDisenchant.ApplyCurrent()
     if MainWindow.frame and MainWindow.frame:IsShown() then
         MainWindow:Refresh()
-    elseif reason == "metrics" and MainWindow.RefreshQueueCount then
-        MainWindow:RefreshQueueCount()
     end
 end
 
@@ -411,7 +404,7 @@ eventFrame:SetScript("OnEvent", function(_, eventName, unitTarget, _, spellID)
 
     if eventName == "PLAYER_REGEN_ENABLED" then
         SecureDisenchant.OnLeaveCombat()
-        refreshRuntime("leave combat")
+        refreshRuntime()
         return
     end
 
@@ -424,7 +417,7 @@ eventFrame:SetScript("OnEvent", function(_, eventName, unitTarget, _, spellID)
     end
 
     if eventName == "BAG_UPDATE_DELAYED" or eventName == "PLAYER_ENTERING_WORLD" or eventName == "SPELLS_CHANGED" then
-        refreshRuntime(eventName)
+        refreshRuntime()
         return
     end
 

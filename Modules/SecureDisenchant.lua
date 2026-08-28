@@ -12,7 +12,6 @@ local LOOT_PENDING_SECONDS = 2
 local SecureDisenchant = {
     button = nil,
     pendingApply = false,
-    casting = false,
     allowGcdFill = false,
     pendingLoot = false,
     pendingLootUntil = 0,
@@ -33,8 +32,11 @@ local function disenchantLabel()
     return Eligibility.GetSpellName() or "Disenchant"
 end
 
-function SecureDisenchant.IsCasting()
-    return SecureDisenchant.casting == true
+local function refreshQueueCount()
+    local window = addon.MainWindow
+    if window and window.frame and window.frame:IsShown() then
+        window:RefreshQueueCount()
+    end
 end
 
 function SecureDisenchant.ApplyCurrent()
@@ -227,26 +229,20 @@ function SecureDisenchant.OnCastStart(spellID)
     if spellID ~= DISENCHANT_SPELL_ID then
         return
     end
-    SecureDisenchant.casting = true
     SecureDisenchant.allowGcdFill = false
     hideProgressFill(getButton())
-    if addon.MainWindow and addon.MainWindow.RefreshMetrics then
-        addon.MainWindow:RefreshMetrics()
-    end
+    refreshQueueCount()
 end
 
 function SecureDisenchant.OnCastStop(spellID, interrupted)
     if spellID ~= DISENCHANT_SPELL_ID then
         return
     end
-    SecureDisenchant.casting = false
     if interrupted then
         SecureDisenchant.allowGcdFill = false
         hideProgressFill(getButton())
     end
-    if addon.MainWindow and addon.MainWindow.RefreshMetrics then
-        addon.MainWindow:RefreshMetrics()
-    end
+    refreshQueueCount()
 end
 
 function SecureDisenchant.OnCastSucceeded(spellID)
@@ -254,7 +250,6 @@ function SecureDisenchant.OnCastSucceeded(spellID)
         return
     end
 
-    SecureDisenchant.casting = false
     SecureDisenchant.allowGcdFill = true
     SecureDisenchant.pendingLoot = true
     SecureDisenchant.pendingLootUntil = GetTime() + LOOT_PENDING_SECONDS

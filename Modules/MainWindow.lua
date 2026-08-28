@@ -129,10 +129,6 @@ function MainWindow:RefreshQueueCount(snapshot)
     self.queueCount:SetText((L["FMT_QUEUE_COUNT"]):format(queued, queued + #snapshot.items))
 end
 
-function MainWindow:RefreshMetrics()
-    self:RefreshQueueCount()
-end
-
 function MainWindow:CloseBagMenus()
     if self.filtersOverlay then
         self.filtersOverlay:Hide()
@@ -155,10 +151,6 @@ function MainWindow:CloseBagMenus()
     if self.groupByPanel then
         self.groupByPanel:Hide()
     end
-end
-
-function MainWindow:CloseFiltersPanel()
-    self:CloseBagMenus()
 end
 
 local BAG_MENU_ORDER_OPTIONS = { "name", "ilvl", "quality", "slot" }
@@ -245,10 +237,6 @@ function MainWindow:OpenBagMenu(which)
     end
 end
 
-function MainWindow:OpenFiltersPanel()
-    self:OpenBagMenu("filters")
-end
-
 function MainWindow:ToggleBagMenu(which)
     local panel
     if which == "filters" then
@@ -263,10 +251,6 @@ function MainWindow:ToggleBagMenu(which)
         return
     end
     self:OpenBagMenu(which)
-end
-
-function MainWindow:ToggleFiltersPanel()
-    self:ToggleBagMenu("filters")
 end
 
 function MainWindow:CreateBagRow()

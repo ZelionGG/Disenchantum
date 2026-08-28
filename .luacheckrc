@@ -11,7 +11,6 @@ exclude_files = {
 
 globals = {
     'BINDING_HEADER_DISENCHANTER',
-    'Disenchanter_OnAddonCompartmentClick',
     'SLASH_DISENCHANTER1',
     'SLASH_DISENCHANTER2',
     'SlashCmdList',
@@ -27,7 +26,6 @@ read_globals = {
     'C_Timer',
     'C_TooltipInfo',
     'C_TradeSkillUI',
-    'ChatFontNormal',
     'ClearCursor',
     'Constants',
     'CreateFrame',
@@ -48,7 +46,6 @@ read_globals = {
     'GetTime',
     'HUD_EDIT_MODE_BAGS_LABEL',
     'InCombatLockdown',
-    'IsMouseButtonDown',
     'ITEM_QUALITY2_DESC',
     'ITEM_QUALITY3_DESC',
     'ITEM_QUALITY4_DESC',

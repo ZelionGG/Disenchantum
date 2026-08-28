@@ -207,10 +207,6 @@ function Queue.RemoveByGUID(guid)
     return Queue.RemoveAt(index)
 end
 
-function Queue.RemoveCurrent()
-    return Queue.RemoveAt(1)
-end
-
 function Queue.Clear()
     if #Queue.entries == 0 then
         return

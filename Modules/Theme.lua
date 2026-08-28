@@ -59,16 +59,12 @@ end
 
 function Theme.CreateText(parent, text, variant)
     local fontObject = "GameFontHighlight"
-    if variant == "title" then
-        fontObject = "GameFontNormalHuge"
-    elseif variant == "heading" then
+    if variant == "heading" then
         fontObject = "GameFontNormalLarge"
     elseif variant == "label" then
         fontObject = "GameFontHighlightSmall"
     elseif variant == "muted" then
         fontObject = "GameFontDisable"
-    elseif variant == "mono" then
-        fontObject = "ChatFontNormal"
     end
 
     local label = parent:CreateFontString(nil, "ARTWORK", fontObject)
@@ -319,100 +315,6 @@ function Theme.CreateItemIcon(parent, size)
     return wrap
 end
 
-function Theme.CreateSlider(parent, width, minValue, maxValue, step)
-    local slider = CreateFrame("Slider", nil, parent)
-    slider:SetSize(width or 180, 20)
-    slider:SetOrientation("HORIZONTAL")
-    slider:SetMinMaxValues(minValue or 0, maxValue or 1)
-    slider:SetValueStep(step or 0.1)
-    slider:SetObeyStepOnDrag(true)
-    slider:EnableMouse(true)
-
-    slider.track = slider:CreateTexture(nil, "BACKGROUND")
-    slider.track:SetColorTexture(Theme.UnpackColor(Theme.colors.borderMuted))
-    slider.track:SetPoint("LEFT", slider, "LEFT", 4, 0)
-    slider.track:SetPoint("RIGHT", slider, "RIGHT", -4, 0)
-    slider.track:SetHeight(3)
-
-    slider.fill = slider:CreateTexture(nil, "BORDER")
-    slider.fill:SetColorTexture(Theme.UnpackColor(Theme.colors.accent))
-    slider.fill:SetPoint("LEFT", slider.track, "LEFT", 0, 0)
-    slider.fill:SetHeight(3)
-
-    slider.thumbTexture = slider:CreateTexture(nil, "OVERLAY")
-    slider.thumbTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-    slider.thumbTexture:SetSize(10, 18)
-    slider.thumbTexture:SetVertexColor(Theme.UnpackColor(Theme.colors.accent))
-    slider:SetThumbTexture(slider.thumbTexture)
-
-    slider.isHovered = false
-    slider.isDragging = false
-
-    function slider:FinishDrag()
-        if not self.isDragging then
-            self:RefreshVisual()
-            return
-        end
-
-        self.isDragging = false
-        self:RefreshVisual()
-        if self.OnDragStopCallback then
-            self:OnDragStopCallback()
-        end
-    end
-
-    function slider:RefreshVisual()
-        local value = self:GetValue() or minValue or 0
-        local rangeMin, rangeMax = self:GetMinMaxValues()
-        local range = math.max(0.0001, rangeMax - rangeMin)
-        local percent = math.max(0, math.min(1, (value - rangeMin) / range))
-        local trackWidth = math.max(0, (self.track:GetWidth() or 0))
-        self.fill:SetWidth(trackWidth * percent)
-
-        if self.isHovered or self:IsMouseOver() then
-            self.thumbTexture:SetVertexColor(Theme.UnpackColor(Theme.colors.text))
-        else
-            self.thumbTexture:SetVertexColor(Theme.UnpackColor(Theme.colors.accent))
-        end
-    end
-
-    slider:SetScript("OnEnter", function(self)
-        self.isHovered = true
-        self:RefreshVisual()
-    end)
-    slider:SetScript("OnLeave", function(self)
-        self.isHovered = false
-        self:RefreshVisual()
-    end)
-    slider:SetScript("OnMouseDown", function(self)
-        self.isDragging = true
-        self:RefreshVisual()
-    end)
-    slider:SetScript("OnMouseUp", function(self)
-        self:FinishDrag()
-    end)
-    slider:SetScript("OnHide", function(self)
-        self.isDragging = false
-    end)
-    slider:SetScript("OnSizeChanged", function(self)
-        self:RefreshVisual()
-    end)
-    slider:SetScript("OnUpdate", function(self)
-        if self.isDragging and not IsMouseButtonDown("LeftButton") then
-            self:FinishDrag()
-        end
-    end)
-    slider:SetScript("OnValueChanged", function(self, value)
-        self:RefreshVisual()
-        if self.OnValueChanged then
-            self:OnValueChanged(value)
-        end
-    end)
-
-    slider:RefreshVisual()
-    return slider
-end
-
 function Theme.CreateCard(parent, width, height)
     local card = Theme.CreatePanel(parent, Theme.colors.card, Theme.colors.borderSoft)
     if width then
@@ -439,52 +341,6 @@ function Theme.SetCardTone(card, tone)
     end
 
     Theme.ApplySurface(card, Theme.colors.card, border)
-end
-
-function Theme.CreateMetricCard(parent, width, height, title)
-    local card = Theme.CreateCard(parent, width, height)
-    card.Title = Theme.CreateText(card, title, "label")
-    card.Title:SetPoint("TOPLEFT", card, "TOPLEFT", 12, -10)
-
-    card.Icon = card:CreateTexture(nil, "ARTWORK")
-    card.Icon:SetSize(18, 18)
-    card.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    card.Icon:Hide()
-
-    card.Value = Theme.CreateText(card, "", "heading")
-    card.Value:SetPoint("TOPLEFT", card.Title, "BOTTOMLEFT", 0, -10)
-    card.Value:SetWidth((width or 160) - 24)
-
-    card.Meta = Theme.CreateText(card, "", "muted")
-    card.Meta:SetPoint("TOPLEFT", card.Value, "BOTTOMLEFT", 0, -6)
-    card.Meta:SetWidth((width or 160) - 24)
-    card.Meta:SetJustifyV("TOP")
-
-    function card:SetMetric(value, meta, tone, iconTexture)
-        self.Value:SetText(value or "")
-        self.Meta:SetText(meta or "")
-        Theme.SetCardTone(self, tone)
-
-        self.Value:ClearAllPoints()
-        self.Meta:ClearAllPoints()
-
-        if iconTexture then
-            self.Icon:SetTexture(iconTexture)
-            self.Icon:Show()
-            self.Icon:SetPoint("TOPLEFT", self.Title, "BOTTOMLEFT", 0, -8)
-            self.Value:SetPoint("TOPLEFT", self.Icon, "TOPRIGHT", 8, -1)
-            self.Value:SetWidth((width or 160) - 50)
-        else
-            self.Icon:Hide()
-            self.Value:SetPoint("TOPLEFT", self.Title, "BOTTOMLEFT", 0, -8)
-            self.Value:SetWidth((width or 160) - 24)
-        end
-
-        self.Meta:SetPoint("TOPLEFT", self.Value, "BOTTOMLEFT", 0, -6)
-        self.Meta:SetWidth((width or 160) - 24)
-    end
-
-    return card
 end
 
 function Theme.CreateStyledScrollArea(parent, contentWidth)
