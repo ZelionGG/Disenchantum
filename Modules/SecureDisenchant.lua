@@ -32,6 +32,19 @@ local function disenchantLabel()
     return Eligibility.GetSpellName() or "Disenchant"
 end
 
+local function setHoldHover(active)
+    local button = getButton()
+    if not button then
+        return
+    end
+    active = active == true
+    if button.holdHover == active then
+        return
+    end
+    button.holdHover = active
+    Theme.UpdateButtonColors(button)
+end
+
 local function refreshQueueCount()
     local window = addon.MainWindow
     if window and window.frame and window.frame:IsShown() then
@@ -161,9 +174,12 @@ function SecureDisenchant.UpdateProgress()
             setProgressFill(button, math.max(0, math.min(1, elapsed)), true)
             local base = button.baseLabel or disenchantLabel()
             button:SetText(base .. "  ·  " .. formatRemaining(remaining))
+            setHoldHover(true)
             return
         end
     end
+
+    setHoldHover(false)
 
     if button.baseLabel and button.Label and button.Label:GetText() ~= button.baseLabel then
         button:SetText(button.baseLabel)
@@ -231,6 +247,7 @@ function SecureDisenchant.OnCastStart(spellID)
     end
     SecureDisenchant.allowGcdFill = false
     hideProgressFill(getButton())
+    setHoldHover(true)
     refreshQueueCount()
 end
 
@@ -242,6 +259,7 @@ function SecureDisenchant.OnCastStop(spellID, interrupted)
         SecureDisenchant.allowGcdFill = false
         hideProgressFill(getButton())
     end
+    setHoldHover(false)
     refreshQueueCount()
 end
 

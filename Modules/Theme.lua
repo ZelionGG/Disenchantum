@@ -126,7 +126,7 @@ function Theme.UpdateButtonColors(button)
         style = state.disabled
     elseif button.isSelected then
         style = state.active
-    elseif button.isHovered then
+    elseif button.isHovered or button.holdHover then
         style = state.hover
     else
         style = state.normal
