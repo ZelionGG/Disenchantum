@@ -15,6 +15,11 @@ local BAG_HEADER_SPACING = 32
 local QUEUE_ROW_SPACING = 64
 local LIST_TOP_PADDING = 10
 local ITEM_ICON_SIZE = 40
+local BAG_CRAFTED_ICON_SIZE = 16
+local QUEUE_CRAFTED_ICON_SIZE = 24
+local BAG_CRAFTED_ICON_GAP = 4
+local BAG_TITLE_RIGHT_INSET = 10
+local BAG_TITLE_CRAFTED_INSET = BAG_TITLE_RIGHT_INSET + BAG_CRAFTED_ICON_SIZE + BAG_CRAFTED_ICON_GAP
 local SESSION_CHIP_SIZE = 28
 local SESSION_CHIP_GAP = 6
 local QUEUE_DRAG_THRESHOLD = 6
@@ -59,6 +64,14 @@ local function getCraftingQualityInfo(itemIDOrLink)
         info = C_TradeSkillUI.GetItemCraftedQualityInfo(itemIDOrLink)
     end
     return info
+end
+
+local function createCraftedIcon(parent, size, atlas)
+    local icon = parent:CreateTexture(nil, "OVERLAY")
+    icon:SetAtlas(atlas or "UI-HUD-Minimap-CraftingOrder-Up")
+    icon:SetSize(size, size)
+    icon:Hide()
+    return icon
 end
 
 local function groupReagentsByExpansion(reagents)
@@ -209,6 +222,22 @@ local function applyRowItemVisuals(row)
 
     if row.IconWrap then
         row.IconWrap:SetQuality(row.quality)
+    end
+
+    if row.CraftedIcon then
+        local crafted = Eligibility.IsCraftedEquipment(row.itemLink)
+        if row.Delete then
+            row.CraftedIcon:SetShown(crafted)
+        elseif crafted then
+            row.Title:SetPoint("RIGHT", row, "RIGHT", -BAG_TITLE_CRAFTED_INSET, 0)
+            local shownWidth = math.min(row.Title:GetStringWidth() or 0, row.Title:GetWidth() or 0)
+            row.CraftedIcon:ClearAllPoints()
+            row.CraftedIcon:SetPoint("LEFT", row.Title, "LEFT", shownWidth + BAG_CRAFTED_ICON_GAP, 0)
+            row.CraftedIcon:Show()
+        else
+            row.Title:SetPoint("RIGHT", row, "RIGHT", -BAG_TITLE_RIGHT_INSET, 0)
+            row.CraftedIcon:Hide()
+        end
     end
 end
 
@@ -371,6 +400,9 @@ function MainWindow:CloseBagMenus()
     if self.groupByButton then
         self.groupByButton:SetSelected(false)
     end
+    if self.blacklistButton then
+        self.blacklistButton:SetSelected(false)
+    end
     if self.filtersPanel then
         self.filtersPanel:Hide()
     end
@@ -379,6 +411,9 @@ function MainWindow:CloseBagMenus()
     end
     if self.groupByPanel then
         self.groupByPanel:Hide()
+    end
+    if self.blacklistPanel then
+        self.blacklistPanel:Hide()
     end
 end
 
@@ -429,6 +464,8 @@ function MainWindow:OpenBagMenu(which)
 
     if which == "filters" then
         self:RefreshFilters()
+    elseif which == "blacklist" then
+        self:RefreshBlacklistList()
     else
         self:RefreshBagViewRadios()
     end
@@ -441,6 +478,9 @@ function MainWindow:OpenBagMenu(which)
     end
     if self.groupByPanel then
         self.groupByPanel:SetShown(which == "group")
+    end
+    if self.blacklistPanel then
+        self.blacklistPanel:SetShown(which == "blacklist")
     end
 
     self.filtersOverlay:Show()
@@ -455,6 +495,9 @@ function MainWindow:OpenBagMenu(which)
     if self.groupByPanel then
         self.groupByPanel:SetFrameLevel(overlayLevel + 2)
     end
+    if self.blacklistPanel then
+        self.blacklistPanel:SetFrameLevel(overlayLevel + 2)
+    end
     if self.filtersButton then
         self.filtersButton:SetSelected(which == "filters")
     end
@@ -464,6 +507,9 @@ function MainWindow:OpenBagMenu(which)
     if self.groupByButton then
         self.groupByButton:SetSelected(which == "group")
     end
+    if self.blacklistButton then
+        self.blacklistButton:SetSelected(which == "blacklist")
+    end
 end
 
 function MainWindow:ToggleBagMenu(which)
@@ -472,6 +518,8 @@ function MainWindow:ToggleBagMenu(which)
         panel = self.filtersPanel
     elseif which == "order" then
         panel = self.orderByPanel
+    elseif which == "blacklist" then
+        panel = self.blacklistPanel
     else
         panel = self.groupByPanel
     end
@@ -495,17 +543,20 @@ function MainWindow:CreateBagRow()
 
     row.Title = Theme.CreateText(row, "", "body")
     row.Title:SetPoint("TOPLEFT", row.IconWrap, "TOPRIGHT", 10, 0)
-    row.Title:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+    row.Title:SetPoint("RIGHT", row, "RIGHT", -BAG_TITLE_RIGHT_INSET, 0)
     row.Title:SetJustifyH("LEFT")
     row.Title:SetWordWrap(false)
     row.Title:SetMaxLines(1)
 
+    row.CraftedIcon = createCraftedIcon(row, BAG_CRAFTED_ICON_SIZE)
+
     row.Meta = Theme.CreateText(row, "", "muted")
     row.Meta:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -4)
-    row.Meta:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+    row.Meta:SetPoint("RIGHT", row, "RIGHT", -BAG_TITLE_RIGHT_INSET, 0)
     row.Meta:SetWordWrap(false)
     row.Meta:SetMaxLines(1)
 
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetScript("OnEnter", function(selfRow)
         selfRow.isHovered = true
         Theme.UpdateButtonColors(selfRow)
@@ -518,7 +569,18 @@ function MainWindow:CreateBagRow()
         applyRowItemVisuals(selfRow)
         hideTooltip()
     end)
-    row:SetScript("OnClick", function(selfRow)
+    row:SetScript("OnClick", function(selfRow, mouseButton)
+        if mouseButton == "RightButton" then
+            hideTooltip()
+            Queue.RequestBlacklist({
+                itemID = selfRow.itemID,
+                itemName = selfRow.itemName,
+                itemLink = selfRow.itemLink,
+                icon = selfRow.icon,
+                quality = selfRow.quality,
+            })
+            return
+        end
         if selfRow.bag and selfRow.slot then
             Queue.AddFromBag(selfRow.bag, selfRow.slot)
         end
@@ -536,6 +598,8 @@ function MainWindow:CreateBagRow()
         rowFrame.bag = entry.bag
         rowFrame.slot = entry.slot
         rowFrame.itemLink = entry.itemLink
+        rowFrame.itemID = entry.itemID
+        rowFrame.icon = entry.icon
         rowFrame.itemName = entry.itemName
         rowFrame.quality = entry.quality
         rowFrame.itemLevelText = itemLevelText(entry)
@@ -543,11 +607,105 @@ function MainWindow:CreateBagRow()
         rowFrame.bindText = entry.bindLabel or ""
         rowFrame.IconWrap:SetIcon(entry.icon)
         Theme.UpdateButtonColors(rowFrame)
+        rowFrame:Show()
+        applyRowItemVisuals(rowFrame)
+    end
+
+    return row
+end
+
+function MainWindow:CreateBlacklistRow()
+    local row = Theme.CreateCard(self.blacklistListContent, nil, 48)
+    row:EnableMouse(true)
+
+    row.IconWrap = Theme.CreateItemIcon(row, 32)
+    row.IconWrap:SetPoint("LEFT", row, "LEFT", 8, 0)
+    row.IconWrap:EnableMouse(false)
+
+    row.Title = Theme.CreateText(row, "", "body")
+    row.Title:SetPoint("LEFT", row.IconWrap, "RIGHT", 10, 0)
+    row.Title:SetPoint("RIGHT", row, "RIGHT", -44, 0)
+    row.Title:SetJustifyH("LEFT")
+    row.Title:SetWordWrap(false)
+    row.Title:SetMaxLines(1)
+
+    row.Delete = Theme.CreateButton(row, 24, 24, "X", "danger")
+    row.Delete:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+    row.Delete.labelOffsetX = 1
+    row.Delete.labelOffsetY = 1
+    row.Delete.Label:SetPoint("CENTER", 1, 1)
+    row.Delete:SetScript("OnClick", function()
+        if row.itemID then
+            Queue.BlacklistRemove(row.itemID)
+        end
+    end)
+
+    row:SetScript("OnEnter", function(selfRow)
+        showItemTooltip(selfRow, nil, nil, selfRow.itemLink)
+    end)
+    row:SetScript("OnLeave", hideTooltip)
+
+    function row.Refresh(rowFrame, entry)
+        if not entry then
+            rowFrame:Hide()
+            return
+        end
+
+        rowFrame.itemID = entry.itemID
+        rowFrame.itemLink = entry.itemLink
+        rowFrame.itemName = entry.itemName
+        rowFrame.quality = entry.quality
+        rowFrame.IconWrap:SetIcon(entry.icon)
         applyRowItemVisuals(rowFrame)
         rowFrame:Show()
     end
 
     return row
+end
+
+function MainWindow:RefreshBlacklistList()
+    if not self.blacklistButton then
+        return
+    end
+
+    local entries = Queue.GetBlacklistEntries()
+    if self.blacklistCount then
+        if #entries > 0 then
+            self.blacklistCount:SetText(("(%d)"):format(#entries))
+        else
+            self.blacklistCount:SetText("")
+        end
+    end
+
+    if not self.blacklistListContent then
+        return
+    end
+    self.blacklistRows = self.blacklistRows or {}
+
+    for index = 1, math.max(#entries, #self.blacklistRows) do
+        local row = self.blacklistRows[index]
+        if not row then
+            row = self:CreateBlacklistRow()
+            self.blacklistRows[index] = row
+        end
+
+        local entry = entries[index]
+        if entry then
+            row:SetPoint("TOPLEFT", self.blacklistListContent, "TOPLEFT", 0, -((index - 1) * 56))
+            row:SetPoint("TOPRIGHT", self.blacklistListContent, "TOPRIGHT", 0, -((index - 1) * 56))
+            row:Refresh(entry)
+        else
+            row:Hide()
+        end
+    end
+
+    self.blacklistListContent:SetHeight(math.max(1, #entries * 56))
+    if self.blacklistEmpty then
+        self.blacklistEmpty:SetShown(#entries == 0)
+    end
+    if self.blacklistScroll and self.blacklistScroll.UpdateScrollBar then
+        self.blacklistScroll:UpdateScrollBar()
+    end
 end
 
 function MainWindow:CreateBagHeaderRow()
@@ -823,6 +981,14 @@ function MainWindow:CreateQueueRow(index)
 
     row.Delete = Theme.CreateButton(row, 24, 24, "X", "danger")
     row.Delete:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+    -- GameFontHighlight "X" sits low and left in 24px.
+    row.Delete.labelOffsetX = 1
+    row.Delete.labelOffsetY = 1
+    row.Delete.Label:SetPoint("CENTER", 1, 1)
+
+    row.CraftedIcon = createCraftedIcon(row, QUEUE_CRAFTED_ICON_SIZE, "UI-HUD-Minimap-CraftingOrder-Up-2x")
+    row.CraftedIcon:SetPoint("CENTER", row, "CENTER", 0, 0)
+
     row.Delete:SetScript("OnClick", function()
         if row.queueIndex then
             Queue.RemoveAt(row.queueIndex)
@@ -1008,6 +1174,7 @@ function MainWindow:Refresh()
     self:RefreshQueueList()
     self:RefreshQueueCount(snapshot)
     self:RefreshSession()
+    self:RefreshBlacklistList()
     SecureDisenchant.UpdateVisual()
 end
 
@@ -1167,9 +1334,22 @@ function MainWindow:Initialize()
         Queue.AddAllMatching()
     end)
 
+    self.blacklistButton = Theme.CreateButton(self.sidebar, 148, 32, L["BUTTON_BLACKLIST"], "secondary")
+    self.blacklistButton:SetPoint("BOTTOMLEFT", self.addAllButton, "TOPLEFT", 0, 8)
+    self.blacklistButton:SetPoint("BOTTOMRIGHT", self.addAllButton, "TOPRIGHT", 0, 8)
+    self.blacklistButton:SetHeight(32)
+    self.blacklistButton.Label:SetWordWrap(false)
+    self.blacklistCount = Theme.CreateText(self.blacklistButton, "", "label")
+    self.blacklistCount:SetPoint("RIGHT", self.blacklistButton, "RIGHT", -12, 0)
+    self.blacklistCount:SetJustifyH("RIGHT")
+    Theme.SetFontColor(self.blacklistCount, Theme.colors.textMuted)
+    self.blacklistButton:SetScript("OnClick", function()
+        MainWindow:ToggleBagMenu("blacklist")
+    end)
+
     self.bagScrollCard = Theme.CreatePanel(self.sidebar, Theme.colors.cardInset, Theme.colors.borderMuted)
     self.bagScrollCard:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -118)
-    self.bagScrollCard:SetPoint("BOTTOMRIGHT", self.addAllButton, "TOPRIGHT", 0, 10)
+    self.bagScrollCard:SetPoint("BOTTOMRIGHT", self.blacklistButton, "TOPRIGHT", 0, 10)
 
     self.bagScroll, self.bagListContent = Theme.CreateStyledScrollArea(self.bagScrollCard, SIDEBAR_WIDTH - 70)
     self.bagScroll:SetPoint("TOPLEFT", self.bagScrollCard, "TOPLEFT", 8, -8)
@@ -1444,6 +1624,30 @@ function MainWindow:Initialize()
         BAG_MENU_GROUP_OPTIONS,
         "groupBy"
     )
+
+    self.blacklistPanel = Theme.CreateCard(self.filtersOverlay, SIDEBAR_WIDTH - 32, 320)
+    self.blacklistPanel:SetPoint("BOTTOMLEFT", self.blacklistButton, "TOPLEFT", 0, 8)
+    self.blacklistPanel:EnableMouse(true)
+    self.blacklistPanel:Hide()
+
+    self.blacklistHeading = Theme.CreateText(self.blacklistPanel, L["BUTTON_BLACKLIST"], "heading")
+    self.blacklistHeading:SetPoint("TOPLEFT", self.blacklistPanel, "TOPLEFT", 16, -14)
+
+    self.blacklistScroll, self.blacklistListContent = Theme.CreateStyledScrollArea(self.blacklistPanel, SIDEBAR_WIDTH - 70)
+    self.blacklistScroll:SetPoint("TOPLEFT", self.blacklistPanel, "TOPLEFT", 8, -42)
+    self.blacklistScroll:SetPoint("BOTTOMRIGHT", self.blacklistPanel, "BOTTOMRIGHT", -22, 10)
+    self.blacklistScroll:EnableMouse(true)
+    self.blacklistScroll:HookScript("OnSizeChanged", function(_, width)
+        if width and width > 0 then
+            self.blacklistListContent:SetWidth(width)
+        end
+    end)
+    self.blacklistRows = {}
+
+    self.blacklistEmpty = Theme.CreateText(self.blacklistPanel, L["EMPTY_BLACKLIST"], "muted")
+    self.blacklistEmpty:SetPoint("TOPLEFT", self.blacklistHeading, "BOTTOMLEFT", 0, -12)
+    self.blacklistEmpty:SetPoint("RIGHT", self.blacklistPanel, "RIGHT", -16, 0)
+    self.blacklistEmpty:SetJustifyV("TOP")
 
     self.footer = Theme.CreatePanel(frame, Theme.colors.titleBar, Theme.colors.borderSoft)
     self.footer:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 20, 16)

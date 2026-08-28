@@ -20,6 +20,7 @@ addon.AceDBDefaults = {
             groupBy = "none",
         },
         autoLootReagents = true,
+        blacklist = {},
     },
 }
 
@@ -78,6 +79,23 @@ function addon.NormalizeDatabase(database)
     if database.global.autoLootReagents == nil then
         database.global.autoLootReagents = true
     end
+
+    local rawBlacklist = database.global.blacklist
+    local blacklist = {}
+    if type(rawBlacklist) == "table" then
+        for key, value in pairs(rawBlacklist) do
+            local itemID = tonumber(key)
+            if itemID and type(value) == "table" then
+                blacklist[itemID] = {
+                    name = value.name,
+                    icon = value.icon,
+                    quality = value.quality,
+                    itemLink = value.itemLink,
+                }
+            end
+        end
+    end
+    database.global.blacklist = blacklist
 
     database.global.bagView = database.global.bagView or {}
     if addon.Eligibility and addon.Eligibility.NormalizeBagView then

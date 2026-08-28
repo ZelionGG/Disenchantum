@@ -298,6 +298,30 @@ function Eligibility.IsItemDisenchantable(bag, slot, options)
     return true, info
 end
 
+function Eligibility.IsCraftedEquipment(itemIDOrLink)
+    if not itemIDOrLink or not C_TradeSkillUI then
+        return false
+    end
+    if C_TradeSkillUI.GetItemReagentQualityInfo and C_TradeSkillUI.GetItemReagentQualityInfo(itemIDOrLink) then
+        return false
+    end
+    if C_TradeSkillUI.GetItemCraftedQualityInfo then
+        return C_TradeSkillUI.GetItemCraftedQualityInfo(itemIDOrLink) ~= nil
+    end
+    return false
+end
+
+function Eligibility.IsBlacklisted(itemID)
+    if not itemID then
+        return false
+    end
+    local list = addon.db and addon.db.global and addon.db.global.blacklist
+    if type(list) ~= "table" then
+        return false
+    end
+    return list[itemID] ~= nil or list[tostring(itemID)] ~= nil
+end
+
 function Eligibility.GetItemGUID(bag, slot)
     local location = ItemLocation:CreateFromBagAndSlot(bag, slot)
     if not location or not C_Item.DoesItemExist(location) then
@@ -411,7 +435,7 @@ function Eligibility.CollectSnapshot(options)
         local numSlots = C_Container.GetContainerNumSlots(bag) or 0
         for slot = 1, numSlots do
             local ok, info = Eligibility.IsDisenchantCandidate(bag, slot)
-            if ok then
+            if ok and info and not Eligibility.IsBlacklisted(info.itemID) then
                 local entry = Eligibility.BuildEntry(bag, slot, info)
                 if entry and entry.guid then
                     if not countSkipGuids[entry.guid] then

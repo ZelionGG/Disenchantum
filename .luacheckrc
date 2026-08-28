@@ -14,6 +14,7 @@ globals = {
     'SLASH_DISENCHANTER1',
     'SLASH_DISENCHANTER2',
     'SlashCmdList',
+    'StaticPopupDialogs',
 }
 
 read_globals = {
@@ -68,6 +69,8 @@ read_globals = {
     'QUALITY',
     'RARITY',
     'RESET',
+    'StaticPopup_Show',
+    'StaticPopup_ShowCustomGenericConfirmation',
     'STAT_AVERAGE_ITEM_LEVEL',
     'strcmputf8i',
     'strupper',
@@ -76,6 +79,8 @@ read_globals = {
     'UISpecialFrames',
     'UnitCastingInfo',
     'wipe',
+    'YES',
+    'CANCEL',
 }
 
 files['Locales/*.lua'] = {

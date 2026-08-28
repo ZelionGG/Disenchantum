@@ -168,15 +168,18 @@ function Theme.CreateButton(parent, width, height, text, variant, frameName, ext
         self.isHovered = false
         Theme.UpdateButtonColors(self)
     end)
-    button:SetScript("OnMouseDown", function(self)
-        if self.Label then
-            self.Label:SetPoint("CENTER", 0, -1)
+    local function placeLabel(self, extraY)
+        if not self.Label then
+            return
         end
+        self.Label:SetPoint("CENTER", self.labelOffsetX or 0, (self.labelOffsetY or 0) + extraY)
+    end
+
+    button:SetScript("OnMouseDown", function(self)
+        placeLabel(self, -1)
     end)
     button:SetScript("OnMouseUp", function(self)
-        if self.Label then
-            self.Label:SetPoint("CENTER")
-        end
+        placeLabel(self, 0)
     end)
 
     function button:SetText(value)
