@@ -1,7 +1,11 @@
 package-as: Disenchantum
 enable-nolib-creation: no
 
-ignore:
+ignore: # Files and directories beginning with a dot (such as .git) are automatically ignored, as is the pgkmeta file itself.
+  - tsconfig.json
+  - package.json
+  - package-lock.json
+  - scripts
   - node_modules
 
 externals:
@@ -11,3 +15,7 @@ externals:
   Libs/CallbackHandler-1.0: https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0
   Libs/LibStub: https://repos.curseforge.com/wow/libstub/trunk
   Libs/LibDataBroker-1.1: https://repos.curseforge.com/wow/libdatabroker-1-1
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

@@ -12,6 +12,12 @@
 ## Category-enUS: Professions
 ## Category-frFR: Métiers
 
+## X-Website: https://github.com/ZelionGG/Disenchantum
+## X-Issues: https://github.com/ZelionGG/Disenchantum/issues
+
+## X-Curse-Project-ID: 1672506
+## X-Wago-ID: j6jmrONR
+
 Embeds.xml
 Locales/locales.xml
 
