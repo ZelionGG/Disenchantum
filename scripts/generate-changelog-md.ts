@@ -127,7 +127,7 @@ function parseLuaChangelog(filePath: string): ParsedChangelog {
       continue;
     }
 
-    if (currentCategory !== null && /^\s*\["enUS"\]\s*=\s*\{/.test(line)) {
+    if (currentCategory !== null && /^\s*(?:\["enUS"\]|enUS)\s*=\s*\{/.test(line)) {
       if (currentCategory === "header") {
         inHeaderEnUs = true;
       } else {
@@ -275,7 +275,7 @@ function buildSection(parsed: ParsedChangelog, compareFrom: string, compareTo: s
 
 function renderSingleVersionChangelog(existingMarkdown: string, section: string): string {
   const titleMatch = existingMarkdown.match(/^# .+$/m);
-  const title = titleMatch ? titleMatch[0] : "# Keystone Polaris";
+  const title = titleMatch ? titleMatch[0] : "# Disenchantum";
   return `${title}\n\n${section}\n`;
 }
 
