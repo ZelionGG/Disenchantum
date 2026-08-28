@@ -47,6 +47,20 @@ local REAGENT_TOOLTIP_ICON = {
     margin = { left = 0, right = 6, top = 0, bottom = 0 },
 }
 
+local function getCraftingQualityInfo(itemIDOrLink)
+    if not itemIDOrLink or not C_TradeSkillUI then
+        return nil
+    end
+    local info
+    if C_TradeSkillUI.GetItemReagentQualityInfo then
+        info = C_TradeSkillUI.GetItemReagentQualityInfo(itemIDOrLink)
+    end
+    if not info and C_TradeSkillUI.GetItemCraftedQualityInfo then
+        info = C_TradeSkillUI.GetItemCraftedQualityInfo(itemIDOrLink)
+    end
+    return info
+end
+
 local function groupReagentsByExpansion(reagents)
     local groupsByID = {}
     local order = {}
@@ -139,8 +153,13 @@ local function showSessionTooltip(owner)
             if entry.quality and C_Item.GetItemQualityColor then
                 r, g, b = C_Item.GetItemQualityColor(entry.quality)
             end
+            local name = entry.itemName or ""
+            local craftingInfo = getCraftingQualityInfo(entry.itemLink or entry.itemID)
+            if craftingInfo and craftingInfo.iconSmall and CreateAtlasMarkup then
+                name = CreateAtlasMarkup(craftingInfo.iconSmall, 16, 16) .. " " .. name
+            end
             GameTooltip:AddDoubleLine(
-                entry.itemName or "",
+                name,
                 (L["FMT_SESSION_CHIP_COUNT"]):format(entry.count or 0),
                 r,
                 g,
@@ -297,6 +316,8 @@ function MainWindow:RefreshSession()
         chip.IconWrap.Texture:Show()
         chip.IconWrap:SetIcon(entry.icon)
         chip.IconWrap:SetQuality(entry.quality)
+        local craftingInfo = getCraftingQualityInfo(entry.itemLink or entry.itemID)
+        chip.IconWrap:SetCraftingQuality(craftingInfo and craftingInfo.iconInventory)
         chip.Count:ClearAllPoints()
         chip.Count:SetPoint("BOTTOMRIGHT", chip.IconWrap, "BOTTOMRIGHT", -1, 1)
         chip.Count:SetText((L["FMT_SESSION_CHIP_COUNT"]):format(entry.count))
@@ -313,6 +334,7 @@ function MainWindow:RefreshSession()
         chip.itemLink = nil
         chip.IconWrap.Texture:Hide()
         chip.IconWrap:SetQuality(nil)
+        chip.IconWrap:SetCraftingQuality(nil)
         chip.Count:ClearAllPoints()
         chip.Count:SetPoint("CENTER", chip.IconWrap, "CENTER", 0, 0)
         chip.Count:SetText((L["FMT_SESSION_MORE"]):format(overflow))

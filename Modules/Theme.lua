@@ -302,6 +302,11 @@ function Theme.CreateItemIcon(parent, size)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     wrap.Texture = icon
 
+    wrap.QualityOverlay = wrap:CreateTexture(nil, "OVERLAY")
+    wrap.QualityOverlay:SetPoint("TOPLEFT", wrap, "TOPLEFT", -3, 2)
+    wrap.QualityOverlay:SetDrawLayer("OVERLAY", 7)
+    wrap.QualityOverlay:Hide()
+
     function wrap:SetIcon(fileID)
         self.Texture:SetTexture(fileID)
     end
@@ -312,6 +317,19 @@ function Theme.CreateItemIcon(parent, size)
             self:SetBackdropBorderColor(r, g, b, 1)
         else
             self:SetBackdropBorderColor(Theme.UnpackColor(Theme.colors.border))
+        end
+    end
+
+    function wrap:SetCraftingQuality(atlas)
+        if atlas then
+            if TextureKitConstants and TextureKitConstants.UseAtlasSize then
+                self.QualityOverlay:SetAtlas(atlas, TextureKitConstants.UseAtlasSize)
+            else
+                self.QualityOverlay:SetAtlas(atlas)
+            end
+            self.QualityOverlay:Show()
+        else
+            self.QualityOverlay:Hide()
         end
     end
 
