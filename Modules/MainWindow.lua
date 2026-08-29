@@ -971,6 +971,7 @@ function MainWindow:RefreshQueueDragHighlights()
     end
     self:UpdateQueueInsertLine()
     self:UpdateBagsDropHighlight()
+    self:UpdateBlacklistDropHighlight()
 end
 
 function MainWindow:BeginQueueDrag(row)
@@ -982,6 +983,11 @@ function MainWindow:BeginQueueDrag(row)
         sourceIndex = row.queueIndex,
         insertIndex = row.queueIndex,
         guid = row.guid,
+        itemID = row.itemID,
+        itemName = row.itemName,
+        itemLink = row.itemLink,
+        icon = row.icon,
+        quality = row.quality,
     }
     self:ShowDragGhost(row)
     self:RefreshQueueDragHighlights()
@@ -1005,6 +1011,7 @@ function MainWindow:UpdateQueueDragFromCursor()
         end
         self:UpdateQueueInsertLine()
         self:UpdateBagsDropHighlight()
+        self:UpdateBlacklistDropHighlight()
         self:UpdateDragGhostPosition()
         return
     end
@@ -1040,6 +1047,7 @@ function MainWindow:UpdateQueueDragFromCursor()
         self:UpdateQueueInsertLine()
     end
     self:UpdateBagsDropHighlight()
+    self:UpdateBlacklistDropHighlight()
     self:UpdateDragGhostPosition()
 end
 
@@ -1051,6 +1059,10 @@ function MainWindow:IsCursorOverBags()
     return self.bagScrollCard and self.bagScrollCard:IsMouseOver()
 end
 
+function MainWindow:IsCursorOverBlacklist()
+    return self.blacklistButton and self.blacklistButton:IsMouseOver()
+end
+
 function MainWindow:UpdateBagsDropHighlight()
     local card = self.bagScrollCard
     local overlay = self.bagDropHighlight
@@ -1058,13 +1070,27 @@ function MainWindow:UpdateBagsDropHighlight()
         return
     end
 
-    local active = self.queueDragState and self:IsCursorOverBags()
+    local active = self.queueDragState and self:IsCursorOverBags() and not self:IsCursorOverBlacklist()
     if active then
         Theme.ApplySurface(card, Theme.colors.cardInset, Theme.colors.accent)
         overlay:Show()
     else
         Theme.ApplySurface(card, Theme.colors.cardInset, Theme.colors.borderMuted)
         overlay:Hide()
+    end
+end
+
+function MainWindow:UpdateBlacklistDropHighlight()
+    local button = self.blacklistButton
+    if not button then
+        return
+    end
+
+    local dragging = self.queueDragState or self.bagDragState
+    if dragging and self:IsCursorOverBlacklist() then
+        Theme.ApplySurface(button, Theme.colors.cardSoft, Theme.colors.accent)
+    else
+        Theme.UpdateButtonColors(button)
     end
 end
 
@@ -1152,6 +1178,11 @@ function MainWindow:BeginBagDrag(row)
         slot = row.slot,
         guid = row.guid,
         insertIndex = Queue.Count() + 1,
+        itemID = row.itemID,
+        itemName = row.itemName,
+        itemLink = row.itemLink,
+        icon = row.icon,
+        quality = row.quality,
     }
     self:ShowDragGhost(row)
     self:RefreshQueueDragHighlights()
@@ -1164,8 +1195,16 @@ function MainWindow:EndBagDrag()
         return
     end
 
+    local overBlacklist = self:IsCursorOverBlacklist()
     self.bagDragState = nil
     self:HideDragGhost()
+    if overBlacklist then
+        self.skipBlacklistClick = true
+        Queue.RequestBlacklist(dragState)
+        self:RefreshQueueDragHighlights()
+        return
+    end
+
     local overQueue = self:IsCursorOverQueue()
     self:RefreshQueueDragHighlights()
     if not overQueue or not dragState.bag or not dragState.slot then
@@ -1190,8 +1229,16 @@ function MainWindow:EndQueueDrag()
         return
     end
 
+    local overBlacklist = self:IsCursorOverBlacklist()
     self.queueDragState = nil
     self:HideDragGhost()
+
+    if overBlacklist then
+        self.skipBlacklistClick = true
+        Queue.RequestBlacklist(dragState)
+        self:RefreshQueueDragHighlights()
+        return
+    end
 
     if self:IsCursorOverBags() then
         Queue.RemoveAt(dragState.sourceIndex)
@@ -1334,6 +1381,7 @@ function MainWindow:CreateQueueRow(index)
         rowFrame.itemLink = entry.itemLink
         rowFrame.itemName = entry.itemName
         rowFrame.quality = entry.quality
+        rowFrame.itemID = entry.itemID
         rowFrame.icon = entry.icon
         rowFrame.itemLevelText = itemLevelText(entry)
         rowFrame.slotText = entry.slotName or ""
@@ -1678,7 +1726,41 @@ function MainWindow:Initialize()
     self.blacklistCount:SetJustifyH("RIGHT")
     Theme.SetFontColor(self.blacklistCount, Theme.colors.textMuted)
     self.blacklistButton:SetScript("OnClick", function()
+        if MainWindow.skipBlacklistClick then
+            MainWindow.skipBlacklistClick = nil
+            return
+        end
+        if MainWindow.bagDragState then
+            MainWindow:EndBagDrag()
+            return
+        end
+        if MainWindow.queueDragState then
+            MainWindow:EndQueueDrag()
+            return
+        end
         MainWindow:ToggleBagMenu("blacklist")
+    end)
+    self.blacklistButton:HookScript("OnMouseUp", function()
+        if MainWindow.bagDragState then
+            MainWindow:EndBagDrag()
+            return
+        end
+        if MainWindow.queueDragState then
+            MainWindow:EndQueueDrag()
+        end
+    end)
+    self.blacklistButton:SetScript("OnUpdate", function()
+        if MainWindow.bagDragState or MainWindow.queueDragState then
+            if not IsMouseButtonDown("LeftButton") then
+                if MainWindow.bagDragState then
+                    MainWindow:EndBagDrag()
+                else
+                    MainWindow:EndQueueDrag()
+                end
+                return
+            end
+            MainWindow:UpdateQueueDragFromCursor()
+        end
     end)
 
     self.bagScrollCard = Theme.CreatePanel(self.sidebar, Theme.colors.cardInset, Theme.colors.borderMuted)
