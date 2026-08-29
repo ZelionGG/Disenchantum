@@ -13,7 +13,7 @@ local L = AceLocale:NewLocale(AddonName, "enUS", true, false)
 
 L["ADDON_NAME"] = "Disenchantum"
 L["WINDOW_SUBTITLE"] = "Queue items from your bags, then click Disenchant."
-L["SIDEBAR_BAGS_DESC"] = "Disenchantable items matching your filters. Right-click to ignore."
+L["SIDEBAR_BAGS_DESC"] = "Disenchantable items matching your filters. Right-click to blacklist."
 L["WORKSPACE_QUEUE_TITLE"] = "Queue"
 L["WORKSPACE_QUEUE_DESC"] = "Click an item to add it. Drag queued rows to reorder."
 L["BUTTON_ADD_ALL"] = "Add all"

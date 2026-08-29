@@ -12,7 +12,7 @@ if not L then return end
 
 L["ADDON_NAME"] = "Disenchantum" -- @no-translate
 L["WINDOW_SUBTITLE"] = "Mettez des objets en file, puis cliquez Désenchanter."
-L["SIDEBAR_BAGS_DESC"] = "Objets désenchantables selon vos filtres. Clic droit pour ignorer."
+L["SIDEBAR_BAGS_DESC"] = "Objets désenchantables selon vos filtres. Clic droit pour l'ajouter à la liste noire."
 L["WORKSPACE_QUEUE_TITLE"] = "File"
 L["WORKSPACE_QUEUE_DESC"] = "Cliquez pour ajouter. Glissez les lignes pour réordonner."
 L["BUTTON_ADD_ALL"] = "Tout ajouter"
