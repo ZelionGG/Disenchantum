@@ -1136,8 +1136,7 @@ function MainWindow:RefreshFilters(snapshot)
         self.filterCurrentExpansion:SetCount(currentExpansionCount)
     end
 
-    local visibleIndex = 0
-    for _, row in ipairs(self.expansionFilterRows or {}) do
+    for index, row in ipairs(self.expansionFilterRows or {}) do
         local expansionID = row.expansionID
         local count = expansionCounts[expansionID] or 0
         local stored = filters.expansions[expansionID]
@@ -1147,18 +1146,12 @@ function MainWindow:RefreshFilters(snapshot)
         row:SetCheckedState(stored == true)
         row:SetCount(count)
         row:SetVisualEnabled(not currentOnly)
-
-        if count > 0 then
-            visibleIndex = visibleIndex + 1
-            row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", self.expansionFilterContent, "TOPLEFT", 0, -((visibleIndex - 1) * 28))
-            row:Show()
-        else
-            row:Hide()
-        end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", self.expansionFilterContent, "TOPLEFT", 0, -((index - 1) * 28))
+        row:Show()
     end
     if self.expansionFilterContent then
-        self.expansionFilterContent:SetHeight(math.max(1, visibleIndex * 28))
+        self.expansionFilterContent:SetHeight(math.max(1, #(self.expansionFilterRows or {}) * 28))
     end
 
     if self.minimapToggle then
