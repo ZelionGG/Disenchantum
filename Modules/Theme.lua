@@ -172,6 +172,7 @@ function Theme.CreateButton(parent, width, height, text, variant, frameName, ext
         if not self.Label then
             return
         end
+        self.Label:ClearAllPoints()
         self.Label:SetPoint("CENTER", self.labelOffsetX or 0, (self.labelOffsetY or 0) + extraY)
     end
 

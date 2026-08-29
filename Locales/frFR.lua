@@ -12,7 +12,7 @@ if not L then return end
 
 L["ADDON_NAME"] = "Disenchantum" -- @no-translate
 L["WINDOW_SUBTITLE"] = "Mettez des objets en file, puis cliquez Désenchanter."
-L["SIDEBAR_BAGS_DESC"] = "Objets désenchantables selon vos filtres. Clic droit pour ignorer."
+L["SIDEBAR_BAGS_DESC"] = "Objets désenchantables selon vos filtres. Clic droit pour l'ajouter à la liste noire."
 L["WORKSPACE_QUEUE_TITLE"] = "File"
 L["WORKSPACE_QUEUE_DESC"] = "Cliquez pour ajouter. Glissez les lignes pour réordonner."
 L["BUTTON_ADD_ALL"] = "Tout ajouter"
@@ -44,11 +44,14 @@ L["FMT_SESSION_MORE"] = "+%d" -- @no-translate
 L["EMPTY_SESSION"] = "Aucun désenchantement cette session."
 L["FMT_CAST_REMAINING"] = "%.1fs" -- @no-translate
 L["EMPTY_BAGS"] = "Aucun objet désenchantable dans les sacs."
+L["FMT_BAGS_HIDDEN_BY_FILTERS"] = "%d objets désenchantables masqués par les filtres. Ouvrez Filtres pour les afficher."
 L["EMPTY_BLACKLIST"] = "Aucun objet ignoré."
 L["EMPTY_QUEUE"] = "File vide. Ajoutez des objets depuis vos sacs."
 L["CONFIRM_BLACKLIST"] = "Ignorer cet objet ? Il disparaîtra des Sacs et de Tout ajouter."
 L["CONFIRM_QUEUE_CRAFTED"] = "Mettre cet objet crafté en file ?"
 L["CONFIRM_QUEUE_CRAFTED_N"] = "Mettre %d objets craftés en file ?"
 L["MINIMAP_TOOLTIP"] = "Ouvrir Disenchantum"
+L["WARN_NOT_ENCHANTER_TITLE"] = "Ce personnage n'a pas la profession Enchantement."
+L["WARN_NOT_ENCHANTER_BODY"] = "La profession Enchantement est requise pour désenchanter les objets. Le bouton Désenchanter restera inactif tant que la profession Enchantement n'est pas apprise."
 L["BINDING_HEADER"] = "Disenchantum" -- @no-translate
 L["BINDING_CAST"] = "Désenchanter l'objet suivant"

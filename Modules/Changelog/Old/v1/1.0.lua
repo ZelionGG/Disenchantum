@@ -2,7 +2,7 @@ local _, addon = ...
 
 addon.Changelog["1.0"] = {
     version_string = "1.0",
-    release_date = "2026/08/28",
+    release_date = "2026/08/29",
     header = {
         enUS = {
             title = "Version 1.0 - Initial release",

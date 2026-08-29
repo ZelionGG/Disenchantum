@@ -319,12 +319,12 @@ function Queue.RequestBlacklist(entry)
 end
 
 function Queue.BlacklistAdd(entry)
-    if not entry or not entry.itemID or not addon.db or not addon.db.global then
+    if not entry or not entry.itemID or not addon.db or not addon.db.char then
         return false
     end
 
-    addon.db.global.blacklist = addon.db.global.blacklist or {}
-    addon.db.global.blacklist[entry.itemID] = {
+    addon.db.char.blacklist = addon.db.char.blacklist or {}
+    addon.db.char.blacklist[entry.itemID] = {
         name = entry.itemName,
         icon = entry.icon,
         quality = entry.quality,
@@ -344,10 +344,10 @@ function Queue.BlacklistAdd(entry)
 end
 
 function Queue.BlacklistRemove(itemID)
-    if not itemID or not addon.db or not addon.db.global then
+    if not itemID or not addon.db or not addon.db.char then
         return false
     end
-    local list = addon.db.global.blacklist
+    local list = addon.db.char.blacklist
     if type(list) ~= "table" then
         return false
     end
@@ -362,7 +362,7 @@ end
 
 function Queue.GetBlacklistEntries()
     local entries = {}
-    local list = addon.db and addon.db.global and addon.db.global.blacklist
+    local list = addon.db and addon.db.char and addon.db.char.blacklist
     if type(list) ~= "table" then
         return entries
     end

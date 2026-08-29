@@ -18,7 +18,7 @@ local ITEM_ICON_SIZE = 40
 local BAG_CRAFTED_ICON_SIZE = 16
 local QUEUE_CRAFTED_ICON_SIZE = 24
 local BAG_CRAFTED_ICON_GAP = 4
-local BAG_TITLE_RIGHT_INSET = 10
+local BAG_TITLE_RIGHT_INSET = 50
 local BAG_TITLE_CRAFTED_INSET = BAG_TITLE_RIGHT_INSET + BAG_CRAFTED_ICON_SIZE + BAG_CRAFTED_ICON_GAP
 local SESSION_CHIP_SIZE = 28
 local SESSION_CHIP_GAP = 6
@@ -556,6 +556,25 @@ function MainWindow:CreateBagRow()
     row.Meta:SetWordWrap(false)
     row.Meta:SetMaxLines(1)
 
+    row.Add = Theme.CreateButton(row, 24, 24, "+", "secondary")
+    row.Add:SetPoint("RIGHT", row, "RIGHT", -10, 0)
+    -- Larger "+" sits a bit low in 24px; nudge Y more than X.
+    row.Add.labelOffsetX = 1
+    row.Add.labelOffsetY = 2
+    row.Add.Label:ClearAllPoints()
+    row.Add.Label:SetPoint("CENTER", 1, 2)
+    row.Add.labelColor = Theme.colors.accent
+    Theme.SetFontColor(row.Add.Label, Theme.colors.accent)
+    local plusFont, plusSize, plusFlags = row.Add.Label:GetFont()
+    if plusFont then
+        row.Add.Label:SetFont(plusFont, (plusSize or 14) + 2, plusFlags)
+    end
+    row.Add:SetScript("OnClick", function()
+        if row.bag and row.slot then
+            Queue.AddFromBag(row.bag, row.slot)
+        end
+    end)
+
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetScript("OnEnter", function(selfRow)
         selfRow.isHovered = true
@@ -579,10 +598,68 @@ function MainWindow:CreateBagRow()
                 icon = selfRow.icon,
                 quality = selfRow.quality,
             })
+        end
+    end)
+    row:SetScript("OnMouseDown", function(selfRow, button)
+        if button ~= "LeftButton" then
             return
         end
-        if selfRow.bag and selfRow.slot then
+        local cursorX, cursorY = GetCursorPosition()
+        MainWindow.bagPressState = {
+            row = selfRow,
+            bag = selfRow.bag,
+            slot = selfRow.slot,
+            guid = selfRow.guid,
+            startX = cursorX,
+            startY = cursorY,
+        }
+    end)
+    row:SetScript("OnMouseUp", function(selfRow, button)
+        MainWindow.bagPressState = nil
+        if MainWindow.queueDragState then
+            MainWindow:EndQueueDrag()
+            return
+        end
+        if MainWindow.bagDragState then
+            MainWindow:EndBagDrag()
+            return
+        end
+        if button ~= "LeftButton" then
+            return
+        end
+
+        local now = GetTime()
+        if selfRow.lastClickTime and (now - selfRow.lastClickTime) < QUEUE_DOUBLE_CLICK and selfRow.bag and selfRow.slot then
+            selfRow.lastClickTime = nil
             Queue.AddFromBag(selfRow.bag, selfRow.slot)
+            return
+        end
+        selfRow.lastClickTime = now
+    end)
+    row:SetScript("OnUpdate", function(selfRow)
+        local press = MainWindow.bagPressState
+        if press and press.row == selfRow and not MainWindow.bagDragState then
+            local cursorX, cursorY = GetCursorPosition()
+            local deltaX = cursorX - press.startX
+            local deltaY = cursorY - press.startY
+            if (deltaX * deltaX + deltaY * deltaY) >= (QUEUE_DRAG_THRESHOLD * QUEUE_DRAG_THRESHOLD) then
+                MainWindow:BeginBagDrag(selfRow)
+            end
+        end
+        if MainWindow.queueDragState then
+            if not IsMouseButtonDown("LeftButton") then
+                MainWindow:EndQueueDrag()
+                return
+            end
+            MainWindow:UpdateQueueDragFromCursor()
+            return
+        end
+        if MainWindow.bagDragState then
+            if not IsMouseButtonDown("LeftButton") then
+                MainWindow:EndBagDrag()
+                return
+            end
+            MainWindow:UpdateQueueDragFromCursor()
         end
     end)
     row:SetScript("OnReceiveDrag", function()
@@ -595,6 +672,7 @@ function MainWindow:CreateBagRow()
             return
         end
 
+        rowFrame.guid = entry.guid
         rowFrame.bag = entry.bag
         rowFrame.slot = entry.slot
         rowFrame.itemLink = entry.itemLink
@@ -728,7 +806,8 @@ function MainWindow:CreateBagHeaderRow()
 end
 
 function MainWindow:RefreshBagList(snapshot)
-    local items = (snapshot and snapshot.items) or MainWindow.CollectSnapshot().items
+    snapshot = snapshot or MainWindow.CollectSnapshot()
+    local items = snapshot.items
     local bagView = bagViewSettings()
     Eligibility.SortBagItems(items, bagView.orderBy, bagView.groupBy)
     local display = Eligibility.BuildBagDisplayList(items, bagView.groupBy)
@@ -783,6 +862,14 @@ function MainWindow:RefreshBagList(snapshot)
         end
     end
 
+    if #items == 0 then
+        local hiddenByFilters = snapshot.hiddenByFilters or 0
+        if hiddenByFilters > 0 then
+            self.bagEmpty:SetText((L["FMT_BAGS_HIDDEN_BY_FILTERS"]):format(hiddenByFilters))
+        else
+            self.bagEmpty:SetText(L["EMPTY_BAGS"])
+        end
+    end
     self.bagEmpty:SetShown(#items == 0)
     self.bagListContent:SetHeight(math.max(1, yOffset))
     if self.bagScroll and self.bagScroll.UpdateScrollBar then
@@ -812,8 +899,12 @@ function MainWindow:UpdateQueueInsertLine()
         return
     end
 
-    local dragState = self.queueDragState
+    local dragState = self.queueDragState or self.bagDragState
     if not dragState then
+        line:Hide()
+        return
+    end
+    if (self.bagDragState or self.queueDragState) and not self:IsCursorOverQueue() then
         line:Hide()
         return
     end
@@ -826,12 +917,20 @@ function MainWindow:UpdateQueueInsertLine()
     end
 
     if #visibleRows == 0 then
+        if self.bagDragState then
+            line:ClearAllPoints()
+            line:SetPoint("LEFT", self.queueContent, "TOPLEFT", 8, -math.floor(LIST_TOP_PADDING * 0.5))
+            line:SetPoint("RIGHT", self.queueContent, "TOPRIGHT", -8, -math.floor(LIST_TOP_PADDING * 0.5))
+            line:Show()
+            return
+        end
         line:Hide()
         return
     end
 
     local insertIndex = dragState.insertIndex or dragState.sourceIndex or 1
-    if insertIndex == dragState.sourceIndex or insertIndex == (dragState.sourceIndex + 1) then
+    local sourceIndex = dragState.sourceIndex
+    if sourceIndex and (insertIndex == sourceIndex or insertIndex == sourceIndex + 1) then
         line:Hide()
         return
     end
@@ -871,6 +970,7 @@ function MainWindow:RefreshQueueDragHighlights()
         end
     end
     self:UpdateQueueInsertLine()
+    self:UpdateBagsDropHighlight()
 end
 
 function MainWindow:BeginQueueDrag(row)
@@ -883,11 +983,13 @@ function MainWindow:BeginQueueDrag(row)
         insertIndex = row.queueIndex,
         guid = row.guid,
     }
+    self:ShowDragGhost(row)
     self:RefreshQueueDragHighlights()
 end
 
 function MainWindow:UpdateQueueDragFromCursor()
-    if not self.queueDragState then
+    local dragState = self.queueDragState or self.bagDragState
+    if not dragState then
         return
     end
 
@@ -898,6 +1000,12 @@ function MainWindow:UpdateQueueDragFromCursor()
         end
     end
     if #visibleRows == 0 then
+        if self.bagDragState and self.bagDragState.insertIndex ~= 1 then
+            self.bagDragState.insertIndex = 1
+        end
+        self:UpdateQueueInsertLine()
+        self:UpdateBagsDropHighlight()
+        self:UpdateDragGhostPosition()
         return
     end
 
@@ -925,9 +1033,154 @@ function MainWindow:UpdateQueueDragFromCursor()
         end
     end
 
-    if insertIndex and self.queueDragState.insertIndex ~= insertIndex then
-        self.queueDragState.insertIndex = insertIndex
+    if insertIndex and dragState.insertIndex ~= insertIndex then
+        dragState.insertIndex = insertIndex
         self:RefreshQueueDragHighlights()
+    else
+        self:UpdateQueueInsertLine()
+    end
+    self:UpdateBagsDropHighlight()
+    self:UpdateDragGhostPosition()
+end
+
+function MainWindow:IsCursorOverQueue()
+    return self.queueScrollCard and self.queueScrollCard:IsMouseOver()
+end
+
+function MainWindow:IsCursorOverBags()
+    return self.bagScrollCard and self.bagScrollCard:IsMouseOver()
+end
+
+function MainWindow:UpdateBagsDropHighlight()
+    local card = self.bagScrollCard
+    local overlay = self.bagDropHighlight
+    if not card or not overlay then
+        return
+    end
+
+    local active = self.queueDragState and self:IsCursorOverBags()
+    if active then
+        Theme.ApplySurface(card, Theme.colors.cardInset, Theme.colors.accent)
+        overlay:Show()
+    else
+        Theme.ApplySurface(card, Theme.colors.cardInset, Theme.colors.borderMuted)
+        overlay:Hide()
+    end
+end
+
+function MainWindow:EnsureDragGhost()
+    if self.dragGhost then
+        return self.dragGhost
+    end
+
+    local ghost = Theme.CreateCard(UIParent, 220, 56)
+    ghost:SetFrameStrata("TOOLTIP")
+    ghost:EnableMouse(false)
+    ghost:SetAlpha(0.88)
+    ghost:Hide()
+
+    ghost.IconWrap = Theme.CreateItemIcon(ghost, ITEM_ICON_SIZE)
+    ghost.IconWrap:SetPoint("LEFT", ghost, "LEFT", 8, 0)
+    ghost.IconWrap:EnableMouse(false)
+
+    ghost.Title = Theme.CreateText(ghost, "", "body")
+    ghost.Title:SetPoint("TOPLEFT", ghost.IconWrap, "TOPRIGHT", 8, 0)
+    ghost.Title:SetPoint("RIGHT", ghost, "RIGHT", -10, 0)
+    ghost.Title:SetJustifyH("LEFT")
+    ghost.Title:SetWordWrap(false)
+    ghost.Title:SetMaxLines(1)
+
+    ghost.Meta = Theme.CreateText(ghost, "", "muted")
+    ghost.Meta:SetPoint("TOPLEFT", ghost.Title, "BOTTOMLEFT", 0, -4)
+    ghost.Meta:SetPoint("RIGHT", ghost, "RIGHT", -10, 0)
+    ghost.Meta:SetWordWrap(false)
+    ghost.Meta:SetMaxLines(1)
+
+    self.dragGhost = ghost
+    return ghost
+end
+
+function MainWindow:ShowDragGhost(row)
+    if not row then
+        return
+    end
+
+    local ghost = self:EnsureDragGhost()
+    ghost.itemName = row.itemName
+    ghost.quality = row.quality
+    ghost.itemLink = row.itemLink
+    ghost.itemLevelText = row.itemLevelText or ""
+    ghost.slotText = row.slotText or ""
+    ghost.bindText = row.bindText or ""
+    local icon = row.icon
+    if not icon and row.IconWrap and row.IconWrap.Texture then
+        icon = row.IconWrap.Texture:GetTexture()
+    end
+    if icon then
+        ghost.IconWrap:SetIcon(icon)
+    end
+    applyRowItemVisuals(ghost)
+    ghost:Show()
+    self:UpdateDragGhostPosition()
+end
+
+function MainWindow:UpdateDragGhostPosition()
+    local ghost = self.dragGhost
+    if not ghost or not ghost:IsShown() then
+        return
+    end
+
+    local scale = ghost:GetEffectiveScale() or 1
+    local cursorX, cursorY = GetCursorPosition()
+    ghost:ClearAllPoints()
+    ghost:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", (cursorX / scale) + 16, (cursorY / scale) - 8)
+end
+
+function MainWindow:HideDragGhost()
+    if self.dragGhost then
+        self.dragGhost:Hide()
+    end
+end
+
+function MainWindow:BeginBagDrag(row)
+    if not row or not row.bag or not row.slot then
+        return
+    end
+
+    self.bagDragState = {
+        bag = row.bag,
+        slot = row.slot,
+        guid = row.guid,
+        insertIndex = Queue.Count() + 1,
+    }
+    self:ShowDragGhost(row)
+    self:RefreshQueueDragHighlights()
+end
+
+function MainWindow:EndBagDrag()
+    local dragState = self.bagDragState
+    self.bagPressState = nil
+    if not dragState then
+        return
+    end
+
+    self.bagDragState = nil
+    self:HideDragGhost()
+    local overQueue = self:IsCursorOverQueue()
+    self:RefreshQueueDragHighlights()
+    if not overQueue or not dragState.bag or not dragState.slot then
+        return
+    end
+
+    local ok, reason = Queue.AddFromBag(dragState.bag, dragState.slot)
+    if not ok or reason == "pending" then
+        return
+    end
+
+    local insertIndex = dragState.insertIndex or Queue.Count()
+    local count = Queue.Count()
+    if insertIndex >= 1 and insertIndex < count then
+        Queue.Move(count, insertIndex)
     end
 end
 
@@ -938,6 +1191,13 @@ function MainWindow:EndQueueDrag()
     end
 
     self.queueDragState = nil
+    self:HideDragGhost()
+
+    if self:IsCursorOverBags() then
+        Queue.RemoveAt(dragState.sourceIndex)
+        self:RefreshQueueDragHighlights()
+        return
+    end
 
     local insertIndex = dragState.insertIndex or dragState.sourceIndex
     if insertIndex == dragState.sourceIndex or insertIndex == dragState.sourceIndex + 1 then
@@ -1017,6 +1277,10 @@ function MainWindow:CreateQueueRow(index)
     end)
     row:SetScript("OnMouseUp", function(selfRow)
         MainWindow.queuePressState = nil
+        if MainWindow.bagDragState then
+            MainWindow:EndBagDrag()
+            return
+        end
         local wasDragging = MainWindow.queueDragState ~= nil
         if wasDragging then
             MainWindow:EndQueueDrag()
@@ -1041,7 +1305,15 @@ function MainWindow:CreateQueueRow(index)
                 MainWindow:BeginQueueDrag(selfRow)
             end
         end
-        if MainWindow.queueDragState and selfRow:IsMouseOver() then
+        if MainWindow.queueDragState then
+            if not IsMouseButtonDown("LeftButton") then
+                MainWindow:EndQueueDrag()
+                return
+            end
+            MainWindow:UpdateQueueDragFromCursor()
+            return
+        end
+        if MainWindow.bagDragState then
             MainWindow:UpdateQueueDragFromCursor()
         end
     end)
@@ -1062,6 +1334,7 @@ function MainWindow:CreateQueueRow(index)
         rowFrame.itemLink = entry.itemLink
         rowFrame.itemName = entry.itemName
         rowFrame.quality = entry.quality
+        rowFrame.icon = entry.icon
         rowFrame.itemLevelText = itemLevelText(entry)
         rowFrame.slotText = entry.slotName or ""
         rowFrame.bindText = entry.bindLabel or ""
@@ -1127,8 +1400,7 @@ function MainWindow:RefreshFilters(snapshot)
         self.filterCurrentExpansion:SetCount(currentExpansionCount)
     end
 
-    local visibleIndex = 0
-    for _, row in ipairs(self.expansionFilterRows or {}) do
+    for index, row in ipairs(self.expansionFilterRows or {}) do
         local expansionID = row.expansionID
         local count = expansionCounts[expansionID] or 0
         local stored = filters.expansions[expansionID]
@@ -1138,18 +1410,12 @@ function MainWindow:RefreshFilters(snapshot)
         row:SetCheckedState(stored == true)
         row:SetCount(count)
         row:SetVisualEnabled(not currentOnly)
-
-        if count > 0 then
-            visibleIndex = visibleIndex + 1
-            row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", self.expansionFilterContent, "TOPLEFT", 0, -((visibleIndex - 1) * 28))
-            row:Show()
-        else
-            row:Hide()
-        end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", self.expansionFilterContent, "TOPLEFT", 0, -((index - 1) * 28))
+        row:Show()
     end
     if self.expansionFilterContent then
-        self.expansionFilterContent:SetHeight(math.max(1, visibleIndex * 28))
+        self.expansionFilterContent:SetHeight(math.max(1, #(self.expansionFilterRows or {}) * 28))
     end
 
     if self.minimapToggle then
@@ -1175,7 +1441,27 @@ function MainWindow:Refresh()
     self:RefreshQueueCount(snapshot)
     self:RefreshSession()
     self:RefreshBlacklistList()
+    self:RefreshEnchanterWarning()
     SecureDisenchant.UpdateVisual()
+end
+
+function MainWindow:RefreshEnchanterWarning()
+    if not self.enchanterWarning or not self.sidebar then
+        return
+    end
+
+    if Eligibility.PlayerKnowsDisenchant() then
+        self.enchanterWarning:Hide()
+        self.sidebar:ClearAllPoints()
+        self.sidebar:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 20, -74)
+        self.sidebar:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 20, 64)
+        return
+    end
+
+    self.enchanterWarning:Show()
+    self.sidebar:ClearAllPoints()
+    self.sidebar:SetPoint("TOPLEFT", self.enchanterWarning, "BOTTOMLEFT", 0, -12)
+    self.sidebar:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 20, 64)
 end
 
 function MainWindow:Toggle()
@@ -1304,6 +1590,40 @@ function MainWindow:Initialize()
     table.insert(UISpecialFrames, "DisenchantumWindow")
     self.frame = frame
 
+    self.enchanterWarning = Theme.CreateCard(frame, nil, 56)
+    self.enchanterWarning:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -74)
+    self.enchanterWarning:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -74)
+    Theme.SetCardTone(self.enchanterWarning, "warning")
+
+    local warningIcon = self.enchanterWarning:CreateTexture(nil, "ARTWORK")
+    warningIcon:SetSize(32, 32)
+    warningIcon:SetPoint("LEFT", self.enchanterWarning, "LEFT", 12, 0)
+    warningIcon:SetTexture("Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew")
+
+    local warningText = CreateFrame("Frame", nil, self.enchanterWarning)
+    warningText:SetPoint("LEFT", warningIcon, "RIGHT", 10, 0)
+    warningText:SetPoint("RIGHT", self.enchanterWarning, "RIGHT", -14, 0)
+
+    local warningTitle = Theme.CreateText(warningText, L["WARN_NOT_ENCHANTER_TITLE"], "heading")
+    warningTitle:SetPoint("TOPLEFT", warningText, "TOPLEFT", 0, 0)
+    warningTitle:SetPoint("RIGHT", warningText, "RIGHT", 0, 0)
+    Theme.SetFontColor(warningTitle, Theme.colors.warning)
+
+    local warningBody = Theme.CreateText(warningText, L["WARN_NOT_ENCHANTER_BODY"], "muted")
+    warningBody:SetPoint("TOPLEFT", warningTitle, "BOTTOMLEFT", 0, -3)
+    warningBody:SetPoint("RIGHT", warningText, "RIGHT", 0, 0)
+    warningBody:SetWordWrap(true)
+
+    local function layoutWarningText()
+        local titleHeight = warningTitle:GetStringHeight() or 0
+        local bodyHeight = warningBody:GetStringHeight() or 0
+        warningText:SetHeight(math.max(1, titleHeight + 3 + bodyHeight))
+    end
+    self.enchanterWarning:HookScript("OnShow", layoutWarningText)
+    layoutWarningText()
+
+    self.enchanterWarning:Hide()
+
     self.sidebar = Theme.CreatePanel(frame, Theme.colors.sidebar, Theme.colors.borderSoft)
     self.sidebar:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -74)
     self.sidebar:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 20, 64)
@@ -1364,6 +1684,21 @@ function MainWindow:Initialize()
     self.bagScrollCard = Theme.CreatePanel(self.sidebar, Theme.colors.cardInset, Theme.colors.borderMuted)
     self.bagScrollCard:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -118)
     self.bagScrollCard:SetPoint("BOTTOMRIGHT", self.blacklistButton, "TOPRIGHT", 0, 10)
+    self.bagScrollCard:EnableMouse(true)
+    self.bagScrollCard:SetScript("OnMouseUp", function()
+        if self.queueDragState then
+            self:EndQueueDrag()
+        end
+    end)
+    self.bagScrollCard:SetScript("OnUpdate", function()
+        if self.queueDragState then
+            if not IsMouseButtonDown("LeftButton") then
+                self:EndQueueDrag()
+                return
+            end
+            self:UpdateQueueDragFromCursor()
+        end
+    end)
 
     self.bagScroll, self.bagListContent = Theme.CreateStyledScrollArea(self.bagScrollCard, SIDEBAR_WIDTH - 70)
     self.bagScroll:SetPoint("TOPLEFT", self.bagScrollCard, "TOPLEFT", 8, -8)
@@ -1378,6 +1713,14 @@ function MainWindow:Initialize()
     self.bagEmpty:SetPoint("TOPLEFT", self.bagScrollCard, "TOPLEFT", 16, -16)
     self.bagEmpty:SetPoint("RIGHT", self.bagScrollCard, "RIGHT", -16, 0)
     self.bagEmpty:SetJustifyV("TOP")
+    self.bagEmpty:SetWordWrap(true)
+
+    self.bagDropHighlight = CreateFrame("Frame", nil, self.bagScrollCard, "BackdropTemplate")
+    self.bagDropHighlight:SetAllPoints(self.bagScrollCard)
+    self.bagDropHighlight:EnableMouse(false)
+    self.bagDropHighlight:SetFrameLevel((self.bagScrollCard:GetFrameLevel() or 1) + 20)
+    Theme.ApplySurface(self.bagDropHighlight, { 0.12, 0.28, 0.34, 0.28 }, Theme.colors.accent)
+    self.bagDropHighlight:Hide()
 
     self.workspace = Theme.CreatePanel(frame, Theme.colors.workspace, Theme.colors.borderSoft)
     self.workspace:SetPoint("TOPLEFT", self.sidebar, "TOPRIGHT", 16, 0)
@@ -1468,9 +1811,21 @@ function MainWindow:Initialize()
     self.queueScrollCard:SetPoint("BOTTOMRIGHT", self.sessionCard, "TOPRIGHT", 0, 12)
     self.queueScrollCard:EnableMouse(true)
     self.queueScrollCard:SetScript("OnMouseUp", function()
+        if self.bagDragState then
+            self:EndBagDrag()
+            return
+        end
         self:EndQueueDrag()
     end)
     self.queueScrollCard:SetScript("OnUpdate", function()
+        if self.bagDragState then
+            if not IsMouseButtonDown("LeftButton") then
+                self:EndBagDrag()
+                return
+            end
+            self:UpdateQueueDragFromCursor()
+            return
+        end
         if self.queueDragState then
             self:UpdateQueueDragFromCursor()
         end

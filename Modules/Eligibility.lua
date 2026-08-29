@@ -315,7 +315,7 @@ function Eligibility.IsBlacklisted(itemID)
     if not itemID then
         return false
     end
-    local list = addon.db and addon.db.global and addon.db.global.blacklist
+    local list = addon.db and addon.db.char and addon.db.char.blacklist
     if type(list) ~= "table" then
         return false
     end
@@ -428,6 +428,7 @@ function Eligibility.CollectSnapshot(options)
     }
     local expansionCounts = {}
     local currentExpansionCount = 0
+    local hiddenByFilters = 0
     local currentExpansion = Eligibility.GetCurrentExpansionLevel()
     local firstBag, lastBag = Eligibility.GetBagRange()
 
@@ -453,11 +454,14 @@ function Eligibility.CollectSnapshot(options)
                         end
                     end
 
-                    if not skipGuids[entry.guid]
-                        and Eligibility.MatchesQualityFilter(entry.quality)
-                        and Eligibility.MatchesExpansionFilter(entry.expansionID)
-                    then
-                        items[#items + 1] = entry
+                    if not skipGuids[entry.guid] then
+                        if Eligibility.MatchesQualityFilter(entry.quality)
+                            and Eligibility.MatchesExpansionFilter(entry.expansionID)
+                        then
+                            items[#items + 1] = entry
+                        else
+                            hiddenByFilters = hiddenByFilters + 1
+                        end
                     end
                 end
             end
@@ -469,6 +473,7 @@ function Eligibility.CollectSnapshot(options)
         qualityCounts = qualityCounts,
         expansionCounts = expansionCounts,
         currentExpansionCount = currentExpansionCount,
+        hiddenByFilters = hiddenByFilters,
     }
 end
 
