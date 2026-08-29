@@ -53,6 +53,7 @@ read_globals = {
     'GetLocale',
     'HUD_EDIT_MODE_BAGS_LABEL',
     'InCombatLockdown',
+    'IsMouseButtonDown',
     'ITEM_QUALITY2_DESC',
     'ITEM_QUALITY3_DESC',
     'ITEM_QUALITY4_DESC',
