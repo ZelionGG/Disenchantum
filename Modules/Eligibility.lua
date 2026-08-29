@@ -315,7 +315,7 @@ function Eligibility.IsBlacklisted(itemID)
     if not itemID then
         return false
     end
-    local list = addon.db and addon.db.global and addon.db.global.blacklist
+    local list = addon.db and addon.db.char and addon.db.char.blacklist
     if type(list) ~= "table" then
         return false
     end
