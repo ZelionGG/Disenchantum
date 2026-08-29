@@ -728,7 +728,8 @@ function MainWindow:CreateBagHeaderRow()
 end
 
 function MainWindow:RefreshBagList(snapshot)
-    local items = (snapshot and snapshot.items) or MainWindow.CollectSnapshot().items
+    snapshot = snapshot or MainWindow.CollectSnapshot()
+    local items = snapshot.items
     local bagView = bagViewSettings()
     Eligibility.SortBagItems(items, bagView.orderBy, bagView.groupBy)
     local display = Eligibility.BuildBagDisplayList(items, bagView.groupBy)
@@ -783,6 +784,14 @@ function MainWindow:RefreshBagList(snapshot)
         end
     end
 
+    if #items == 0 then
+        local hiddenByFilters = snapshot.hiddenByFilters or 0
+        if hiddenByFilters > 0 then
+            self.bagEmpty:SetText((L["FMT_BAGS_HIDDEN_BY_FILTERS"]):format(hiddenByFilters))
+        else
+            self.bagEmpty:SetText(L["EMPTY_BAGS"])
+        end
+    end
     self.bagEmpty:SetShown(#items == 0)
     self.bagListContent:SetHeight(math.max(1, yOffset))
     if self.bagScroll and self.bagScroll.UpdateScrollBar then
@@ -1432,6 +1441,7 @@ function MainWindow:Initialize()
     self.bagEmpty:SetPoint("TOPLEFT", self.bagScrollCard, "TOPLEFT", 16, -16)
     self.bagEmpty:SetPoint("RIGHT", self.bagScrollCard, "RIGHT", -16, 0)
     self.bagEmpty:SetJustifyV("TOP")
+    self.bagEmpty:SetWordWrap(true)
 
     self.workspace = Theme.CreatePanel(frame, Theme.colors.workspace, Theme.colors.borderSoft)
     self.workspace:SetPoint("TOPLEFT", self.sidebar, "TOPRIGHT", 16, 0)

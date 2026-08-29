@@ -44,6 +44,7 @@ L["FMT_SESSION_MORE"] = "+%d" -- @no-translate
 L["EMPTY_SESSION"] = "Aucun désenchantement cette session."
 L["FMT_CAST_REMAINING"] = "%.1fs" -- @no-translate
 L["EMPTY_BAGS"] = "Aucun objet désenchantable dans les sacs."
+L["FMT_BAGS_HIDDEN_BY_FILTERS"] = "%d objets désenchantables masqués par les filtres. Ouvrez Filtres pour les afficher."
 L["EMPTY_BLACKLIST"] = "Aucun objet ignoré."
 L["EMPTY_QUEUE"] = "File vide. Ajoutez des objets depuis vos sacs."
 L["CONFIRM_BLACKLIST"] = "Ignorer cet objet ? Il disparaîtra des Sacs et de Tout ajouter."
