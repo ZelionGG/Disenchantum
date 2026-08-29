@@ -50,5 +50,7 @@ L["CONFIRM_BLACKLIST"] = "Ignorer cet objet ? Il disparaîtra des Sacs et de Tou
 L["CONFIRM_QUEUE_CRAFTED"] = "Mettre cet objet crafté en file ?"
 L["CONFIRM_QUEUE_CRAFTED_N"] = "Mettre %d objets craftés en file ?"
 L["MINIMAP_TOOLTIP"] = "Ouvrir Disenchantum"
+L["WARN_NOT_ENCHANTER_TITLE"] = "Ce personnage n'a pas la profession Enchantement."
+L["WARN_NOT_ENCHANTER_BODY"] = "La profession Enchantement est requise pour désenchanter les objets. Le bouton Désenchanter restera inactif tant que la profession Enchantement n'est pas apprise."
 L["BINDING_HEADER"] = "Disenchantum" -- @no-translate
 L["BINDING_CAST"] = "Désenchanter l'objet suivant"

@@ -143,8 +143,9 @@ function SecureDisenchant.ApplyCurrent()
     SecureDisenchant.pendingApply = false
     Queue.RefreshLocations()
     local entry = Queue.GetCurrent()
+    local knowsSpell = Eligibility.PlayerKnowsDisenchant()
 
-    if entry and entry.bag and entry.slot then
+    if knowsSpell and entry and entry.bag and entry.slot then
         button:SetAttribute("type", "spell")
         button:SetAttribute("spell", DISENCHANT_SPELL_ID)
         button:SetAttribute("target-bag", entry.bag)

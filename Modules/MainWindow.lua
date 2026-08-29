@@ -1175,7 +1175,27 @@ function MainWindow:Refresh()
     self:RefreshQueueCount(snapshot)
     self:RefreshSession()
     self:RefreshBlacklistList()
+    self:RefreshEnchanterWarning()
     SecureDisenchant.UpdateVisual()
+end
+
+function MainWindow:RefreshEnchanterWarning()
+    if not self.enchanterWarning or not self.sidebar then
+        return
+    end
+
+    if Eligibility.PlayerKnowsDisenchant() then
+        self.enchanterWarning:Hide()
+        self.sidebar:ClearAllPoints()
+        self.sidebar:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 20, -74)
+        self.sidebar:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 20, 64)
+        return
+    end
+
+    self.enchanterWarning:Show()
+    self.sidebar:ClearAllPoints()
+    self.sidebar:SetPoint("TOPLEFT", self.enchanterWarning, "BOTTOMLEFT", 0, -12)
+    self.sidebar:SetPoint("BOTTOMLEFT", self.frame, "BOTTOMLEFT", 20, 64)
 end
 
 function MainWindow:Toggle()
@@ -1303,6 +1323,40 @@ function MainWindow:Initialize()
 
     table.insert(UISpecialFrames, "DisenchantumWindow")
     self.frame = frame
+
+    self.enchanterWarning = Theme.CreateCard(frame, nil, 56)
+    self.enchanterWarning:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -74)
+    self.enchanterWarning:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -20, -74)
+    Theme.SetCardTone(self.enchanterWarning, "warning")
+
+    local warningIcon = self.enchanterWarning:CreateTexture(nil, "ARTWORK")
+    warningIcon:SetSize(32, 32)
+    warningIcon:SetPoint("LEFT", self.enchanterWarning, "LEFT", 12, 0)
+    warningIcon:SetTexture("Interface\\DialogFrame\\UI-Dialog-Icon-AlertNew")
+
+    local warningText = CreateFrame("Frame", nil, self.enchanterWarning)
+    warningText:SetPoint("LEFT", warningIcon, "RIGHT", 10, 0)
+    warningText:SetPoint("RIGHT", self.enchanterWarning, "RIGHT", -14, 0)
+
+    local warningTitle = Theme.CreateText(warningText, L["WARN_NOT_ENCHANTER_TITLE"], "heading")
+    warningTitle:SetPoint("TOPLEFT", warningText, "TOPLEFT", 0, 0)
+    warningTitle:SetPoint("RIGHT", warningText, "RIGHT", 0, 0)
+    Theme.SetFontColor(warningTitle, Theme.colors.warning)
+
+    local warningBody = Theme.CreateText(warningText, L["WARN_NOT_ENCHANTER_BODY"], "muted")
+    warningBody:SetPoint("TOPLEFT", warningTitle, "BOTTOMLEFT", 0, -3)
+    warningBody:SetPoint("RIGHT", warningText, "RIGHT", 0, 0)
+    warningBody:SetWordWrap(true)
+
+    local function layoutWarningText()
+        local titleHeight = warningTitle:GetStringHeight() or 0
+        local bodyHeight = warningBody:GetStringHeight() or 0
+        warningText:SetHeight(math.max(1, titleHeight + 3 + bodyHeight))
+    end
+    self.enchanterWarning:HookScript("OnShow", layoutWarningText)
+    layoutWarningText()
+
+    self.enchanterWarning:Hide()
 
     self.sidebar = Theme.CreatePanel(frame, Theme.colors.sidebar, Theme.colors.borderSoft)
     self.sidebar:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, -74)

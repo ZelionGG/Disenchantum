@@ -51,5 +51,7 @@ L["CONFIRM_BLACKLIST"] = "Ignore this item? It will be hidden from Bags and Add 
 L["CONFIRM_QUEUE_CRAFTED"] = "Queue this crafted item?"
 L["CONFIRM_QUEUE_CRAFTED_N"] = "Queue %d crafted items?"
 L["MINIMAP_TOOLTIP"] = "Open Disenchantum"
+L["WARN_NOT_ENCHANTER_TITLE"] = "This character does not have the Enchanting profession."
+L["WARN_NOT_ENCHANTER_BODY"] = "Enchanting profession is required to disenchant items. The Disenchant button will stay disabled until Enchanting is learned."
 L["BINDING_HEADER"] = "Disenchantum"
 L["BINDING_CAST"] = "Disenchant next queued item"
