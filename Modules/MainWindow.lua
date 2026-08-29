@@ -558,11 +558,17 @@ function MainWindow:CreateBagRow()
 
     row.Add = Theme.CreateButton(row, 24, 24, "+", "secondary")
     row.Add:SetPoint("RIGHT", row, "RIGHT", -10, 0)
-    -- GameFontHighlight "+" sits lower and lefter than "X" in 24px.
-    row.Add.labelOffsetX = 2
+    -- Larger "+" sits a bit low in 24px; nudge Y more than X.
+    row.Add.labelOffsetX = 1
     row.Add.labelOffsetY = 2
     row.Add.Label:ClearAllPoints()
-    row.Add.Label:SetPoint("CENTER", 2, 2)
+    row.Add.Label:SetPoint("CENTER", 1, 2)
+    row.Add.labelColor = Theme.colors.accent
+    Theme.SetFontColor(row.Add.Label, Theme.colors.accent)
+    local plusFont, plusSize, plusFlags = row.Add.Label:GetFont()
+    if plusFont then
+        row.Add.Label:SetFont(plusFont, (plusSize or 14) + 2, plusFlags)
+    end
     row.Add:SetScript("OnClick", function()
         if row.bag and row.slot then
             Queue.AddFromBag(row.bag, row.slot)
