@@ -74,6 +74,75 @@ local function createCraftedIcon(parent, size, atlas)
     return icon
 end
 
+local function itemHasUseSpell(itemID)
+    if not itemID or not C_Item.GetItemSpell then
+        return false
+    end
+    local spellName, spellID = C_Item.GetItemSpell(itemID)
+    if spellName or spellID then
+        return true
+    end
+    if C_Item.RequestLoadItemDataByID then
+        C_Item.RequestLoadItemDataByID(itemID)
+    end
+    return false
+end
+
+local function bagItemCount(itemID)
+    if not itemID or not C_Item.GetItemCount then
+        return 0
+    end
+    return C_Item.GetItemCount(itemID) or 0
+end
+
+local function applySessionChipUse(chip, itemID)
+    local hasUse = itemHasUseSpell(itemID)
+    local count = bagItemCount(itemID)
+    local canUse = not chip.isOverflow and hasUse and count > 0
+    chip.canUse = canUse
+
+    if canUse then
+        chip:SetAttribute("type", "item")
+        chip:SetAttribute("item", "item:" .. itemID)
+    else
+        chip:SetAttribute("type", nil)
+        chip:SetAttribute("item", nil)
+    end
+
+    if chip.IconWrap and chip.IconWrap.Texture then
+        chip.IconWrap.Texture:SetDesaturated(hasUse and count <= 0)
+    end
+end
+
+local function pinUsableReagents(reagents)
+    if #reagents < 2 then
+        return reagents
+    end
+
+    local usable = {}
+    local rest = {}
+    for index = 1, #reagents do
+        local entry = reagents[index]
+        if itemHasUseSpell(entry.itemID) then
+            usable[#usable + 1] = entry
+        else
+            rest[#rest + 1] = entry
+        end
+    end
+    if #usable == 0 then
+        return reagents
+    end
+
+    local pinned = {}
+    for index = 1, #usable do
+        pinned[#pinned + 1] = usable[index]
+    end
+    for index = 1, #rest do
+        pinned[#pinned + 1] = rest[index]
+    end
+    return pinned
+end
+
 local function groupReagentsByExpansion(reagents)
     local groupsByID = {}
     local order = {}
@@ -282,8 +351,10 @@ function MainWindow:AcquireSessionChip(index)
         return chip
     end
 
-    chip = CreateFrame("Button", nil, self.sessionChips)
+    chip = CreateFrame("Button", nil, self.sessionChips, "InsecureActionButtonTemplate")
     chip:SetSize(SESSION_CHIP_SIZE + 2, SESSION_CHIP_SIZE + 2)
+    chip:RegisterForClicks("AnyUp", "AnyDown")
+    chip:SetAttribute("useOnKeyDown", false)
 
     chip.IconWrap = Theme.CreateItemIcon(chip, SESSION_CHIP_SIZE)
     chip.IconWrap:SetAllPoints(chip)
@@ -296,8 +367,14 @@ function MainWindow:AcquireSessionChip(index)
     chip:SetScript("OnEnter", function(selfChip)
         if selfChip.isOverflow then
             showSessionTooltip(selfChip)
-        else
-            showItemTooltip(selfChip, nil, nil, selfChip.itemLink)
+            return
+        end
+        showItemTooltip(selfChip, nil, nil, selfChip.itemLink)
+        if selfChip.canUse then
+            L = L or addon.L
+            local r, g, b = Theme.UnpackColor(Theme.colors.accent)
+            GameTooltip:AddLine(L["TOOLTIP_CLICK_TO_USE"], r, g, b)
+            GameTooltip:Show()
         end
     end)
     chip:SetScript("OnLeave", hideTooltip)
@@ -318,7 +395,7 @@ function MainWindow:RefreshSession()
     local countWidth = math.max(72, (self.sessionCount:GetStringWidth() or 72) + 4)
     self.sessionCountHit:SetSize(countWidth, 22)
 
-    local reagents = (session and session.GetReagents and session.GetReagents()) or {}
+    local reagents = pinUsableReagents((session and session.GetReagents and session.GetReagents()) or {})
     local hasReagents = #reagents > 0
     self.sessionEmpty:SetShown(itemCount == 0 and not hasReagents)
     self.sessionChips:SetShown(hasReagents)
@@ -350,6 +427,7 @@ function MainWindow:RefreshSession()
         chip.Count:ClearAllPoints()
         chip.Count:SetPoint("BOTTOMRIGHT", chip.IconWrap, "BOTTOMRIGHT", -1, 1)
         chip.Count:SetText((L["FMT_SESSION_CHIP_COUNT"]):format(entry.count))
+        applySessionChipUse(chip, entry.itemID)
         chip:ClearAllPoints()
         chip:SetPoint("LEFT", self.sessionChips, "LEFT", (index - 1) * stride, 0)
         chip:Show()
@@ -367,13 +445,17 @@ function MainWindow:RefreshSession()
         chip.Count:ClearAllPoints()
         chip.Count:SetPoint("CENTER", chip.IconWrap, "CENTER", 0, 0)
         chip.Count:SetText((L["FMT_SESSION_MORE"]):format(overflow))
+        applySessionChipUse(chip, nil)
         chip:ClearAllPoints()
         chip:SetPoint("LEFT", self.sessionChips, "LEFT", shown * stride, 0)
         chip:Show()
     end
 
     for index = used + 1, #pool do
-        pool[index]:Hide()
+        local chip = pool[index]
+        chip.isOverflow = true
+        applySessionChipUse(chip, nil)
+        chip:Hide()
     end
 end
 

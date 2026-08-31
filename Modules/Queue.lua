@@ -85,10 +85,11 @@ function Queue.MarkConsumed(guid)
     end
 end
 
-function Queue.SweepConsumed()
+function Queue.SweepConsumed(locations)
     -- Drop the hide once the item is gone (loot taken / bag update).
+    locations = locations or Eligibility.IndexBagLocations()
     for guid in pairs(Queue.consumedGuids) do
-        if not Queue.FindLocationByGUID(guid) then
+        if not locations[guid] then
             Queue.consumedGuids[guid] = nil
         end
     end
@@ -99,40 +100,43 @@ function Queue.FindLocationByGUID(guid)
         return nil
     end
 
-    local firstBag, lastBag = Eligibility.GetBagRange()
-    for bag = firstBag, lastBag do
-        local numSlots = C_Container.GetContainerNumSlots(bag) or 0
-        for slot = 1, numSlots do
-            if Eligibility.GetItemGUID(bag, slot) == guid then
-                return bag, slot
-            end
-        end
+    local found = Eligibility.IndexBagLocations()[guid]
+    if not found then
+        return nil
     end
-
-    return nil
+    return found.bag, found.slot
 end
 
 function Queue.RefreshLocations()
+    if #Queue.entries == 0 and not next(Queue.consumedGuids) then
+        return false
+    end
+
+    local locations = Eligibility.IndexBagLocations()
     local kept = {}
     for index = 1, #Queue.entries do
         local entry = Queue.entries[index]
-        local bag, slot = Queue.FindLocationByGUID(entry.guid)
-        if bag then
-            local rebuilt = Eligibility.BuildEntry(bag, slot)
-            if rebuilt then
-                rebuilt.guid = entry.guid
-                kept[#kept + 1] = rebuilt
-            else
-                entry.bag = bag
-                entry.slot = slot
+        local found = entry.guid and locations[entry.guid]
+        if found then
+            if entry.bag == found.bag and entry.slot == found.slot then
                 kept[#kept + 1] = entry
+            else
+                local rebuilt = Eligibility.BuildEntry(found.bag, found.slot)
+                if rebuilt then
+                    rebuilt.guid = entry.guid
+                    kept[#kept + 1] = rebuilt
+                else
+                    entry.bag = found.bag
+                    entry.slot = found.slot
+                    kept[#kept + 1] = entry
+                end
             end
         end
     end
 
     local changed = #kept ~= #Queue.entries
     Queue.entries = kept
-    Queue.SweepConsumed()
+    Queue.SweepConsumed(locations)
     return changed
 end
 

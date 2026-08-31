@@ -136,40 +136,37 @@ function Eligibility.MatchesExpansionFilter(expansionID, filters)
     return stored == true
 end
 
+-- Returns blocked, tooltipReady. Missing lines means not ready, not "allowed".
 local function tooltipBlocksDisenchant(bag, slot)
     -- Soulbound / vendor items that show ITEM_DISENCHANT_NOT_DISENCHANTABLE.
     if not C_TooltipInfo or not C_TooltipInfo.GetBagItem then
-        return false
+        return false, false
     end
 
     local blocked = _G.ITEM_DISENCHANT_NOT_DISENCHANTABLE
     if type(blocked) ~= "string" or blocked == "" then
-        return false
+        return false, false
     end
 
     local data = C_TooltipInfo.GetBagItem(bag, slot)
     local lines = data and data.lines
     if not lines then
-        return false
+        return false, false
     end
 
     for index = 1, #lines do
         local leftText = lines[index] and lines[index].leftText
         if type(leftText) == "string" and leftText:find(blocked, 1, true) then
-            return true
+            return true, true
         end
     end
 
-    return false
+    return false, true
 end
 
 local candidateCache = {}
 local expansionByItemID = {}
 local requestedItemIDs = {}
-
-function Eligibility.InvalidateCache()
-    wipe(candidateCache)
-end
 
 local function requestItemData(bag, slot, itemID)
     if itemID and requestedItemIDs[itemID] then
@@ -259,7 +256,8 @@ function Eligibility.IsDisenchantCandidate(bag, slot)
         return false, info
     end
 
-    if tooltipBlocksDisenchant(bag, slot) then
+    local blocked, tooltipReady = tooltipBlocksDisenchant(bag, slot)
+    if blocked then
         if guid then
             candidateCache[guid] = { ok = false }
         end
@@ -267,7 +265,8 @@ function Eligibility.IsDisenchantCandidate(bag, slot)
     end
 
     info.quality = quality
-    if guid then
+    -- Only cache a positive once the tooltip actually loaded.
+    if guid and tooltipReady then
         candidateCache[guid] = { ok = true, quality = quality }
     end
     return true, info
@@ -414,6 +413,29 @@ function Eligibility.GetBagRange()
     return firstBag, lastBag
 end
 
+function Eligibility.IndexBagLocations()
+    local locations = {}
+    local firstBag, lastBag = Eligibility.GetBagRange()
+    for bag = firstBag, lastBag do
+        local numSlots = C_Container.GetContainerNumSlots(bag) or 0
+        for slot = 1, numSlots do
+            local guid = Eligibility.GetItemGUID(bag, slot)
+            if guid then
+                locations[guid] = { bag = bag, slot = slot }
+            end
+        end
+    end
+    return locations
+end
+
+local function pruneCandidateCache(locations)
+    for guid in pairs(candidateCache) do
+        if not locations[guid] then
+            candidateCache[guid] = nil
+        end
+    end
+end
+
 function Eligibility.CollectSnapshot(options)
     options = options or {}
     -- skipGuids: omit from the bag list (queued + just consumed).
@@ -467,6 +489,8 @@ function Eligibility.CollectSnapshot(options)
             end
         end
     end
+
+    pruneCandidateCache(Eligibility.IndexBagLocations())
 
     return {
         items = items,

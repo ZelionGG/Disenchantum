@@ -41,6 +41,7 @@ L["FMT_QUEUE_COUNT"] = "%d / %d" -- @no-translate
 L["FMT_SESSION_ITEMS"] = "%d désenchantés"
 L["FMT_SESSION_CHIP_COUNT"] = "x%d" -- @no-translate
 L["FMT_SESSION_MORE"] = "+%d" -- @no-translate
+L["TOOLTIP_CLICK_TO_USE"] = "Cliquer pour utiliser"
 L["EMPTY_SESSION"] = "Aucun désenchantement cette session."
 L["FMT_CAST_REMAINING"] = "%.1fs" -- @no-translate
 L["EMPTY_BAGS"] = "Aucun objet désenchantable dans les sacs."

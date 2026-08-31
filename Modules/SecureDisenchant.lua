@@ -371,7 +371,6 @@ function SecureDisenchant.OnCastSucceeded(spellID)
         Queue.MarkConsumed(current.guid)
         Queue.RemoveByGUID(current.guid)
     else
-        Queue.RefreshLocations()
         SecureDisenchant.ApplyCurrent()
     end
 end
