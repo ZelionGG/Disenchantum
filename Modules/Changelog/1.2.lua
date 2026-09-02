@@ -38,9 +38,11 @@ addon.Changelog["1.2"] = {
     improvement = {
         enUS = {
             "The [Disenchant] button keeps icon and name centered so a click no longer jumps the label.",
+            "Item tiles are more compact so more items fit in each list.",
         },
         frFR = {
             "Le bouton [Désenchanter] garde l'icône et le nom au centre pour qu'un clic ne fasse plus sauter le texte.",
+            "Les tuiles d'objets sont plus compactes pour afficher plus d'objets dans chaque liste.",
         },
     },
 }
