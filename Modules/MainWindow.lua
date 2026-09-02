@@ -1011,9 +1011,17 @@ function MainWindow:CreateBagHeaderRow()
     return row
 end
 
+function MainWindow:GetSearchQuery()
+    if self.bagSearch and self.bagSearch.GetText then
+        return self.bagSearch:GetText()
+    end
+    return ""
+end
+
 function MainWindow:RefreshBagList(snapshot)
     snapshot = snapshot or MainWindow.CollectSnapshot()
-    local items = snapshot.items
+    local snapshotCount = #snapshot.items
+    local items = Eligibility.FilterItemsBySearch(snapshot.items, self:GetSearchQuery())
     local bagView = bagViewSettings()
     Eligibility.SortBagItems(items, bagView.orderBy, bagView.groupBy)
     local display = Eligibility.BuildBagDisplayList(items, bagView.groupBy)
@@ -1070,10 +1078,12 @@ function MainWindow:RefreshBagList(snapshot)
 
     if #items == 0 then
         local hiddenByFilters = snapshot.hiddenByFilters or 0
-        if hiddenByFilters > 0 then
+        if snapshotCount == 0 and hiddenByFilters > 0 then
             self.bagEmpty:SetText((L["FMT_BAGS_HIDDEN_BY_FILTERS"]):format(hiddenByFilters))
-        else
+        elseif snapshotCount == 0 then
             self.bagEmpty:SetText(L["EMPTY_BAGS"])
+        else
+            self.bagEmpty:SetText(L["EMPTY_SEARCH"])
         end
     end
     self.bagEmpty:SetShown(#items == 0)
@@ -1914,12 +1924,24 @@ function MainWindow:Initialize()
         MainWindow:ToggleBagMenu("group")
     end)
 
+    self.bagSearch = Theme.CreateSearchBox(self.sidebar, SIDEBAR_WIDTH - 32, 32)
+    self.bagSearch:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -112)
+    self.bagSearch:SetPoint("RIGHT", self.sidebar, "RIGHT", -16, 0)
+    self.bagSearch:SetOnFocusGained(function()
+        MainWindow:CloseBagMenus()
+    end)
+    self.bagSearch:SetOnTextChanged(function()
+        if MainWindow.frame and MainWindow.bagEmpty then
+            MainWindow:RefreshBagList()
+        end
+    end)
+
     self.addAllButton = Theme.CreateButton(self.sidebar, 148, 32, L["BUTTON_ADD_ALL"], "primary")
     self.addAllButton:SetPoint("BOTTOMLEFT", self.sidebar, "BOTTOMLEFT", 16, 16)
     self.addAllButton:SetPoint("BOTTOMRIGHT", self.sidebar, "BOTTOMRIGHT", -16, 16)
     self.addAllButton:SetHeight(32)
     self.addAllButton:SetScript("OnClick", function()
-        Queue.AddAllMatching()
+        Queue.AddAllMatching({ search = MainWindow:GetSearchQuery() })
     end)
 
     self.blacklistButton = Theme.CreateButton(self.sidebar, 148, 32, L["BUTTON_BLACKLIST"], "secondary")
@@ -1970,7 +1992,7 @@ function MainWindow:Initialize()
     end)
 
     self.bagScrollCard = Theme.CreatePanel(self.sidebar, Theme.colors.cardInset, Theme.colors.borderMuted)
-    self.bagScrollCard:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -118)
+    self.bagScrollCard:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -152)
     self.bagScrollCard:SetPoint("BOTTOMRIGHT", self.blacklistButton, "TOPRIGHT", 0, 10)
     self.bagScrollCard:EnableMouse(true)
     self.bagScrollCard:SetScript("OnMouseUp", function()

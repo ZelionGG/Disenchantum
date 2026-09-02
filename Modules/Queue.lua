@@ -251,11 +251,13 @@ function Queue.AddFromBag(bag, slot)
     return Queue.AddEntry(entry)
 end
 
-function Queue.AddAllMatching()
+function Queue.AddAllMatching(options)
+    options = options or {}
     local added = 0
     local items = Eligibility.CollectSnapshot({
         skipGuids = Queue.GetSkipGuids(),
     }).items
+    items = Eligibility.FilterItemsBySearch(items, options.search)
     local orderBy = "name"
     local groupBy = "none"
     if addon.db and addon.db.global and addon.db.global.bagView then

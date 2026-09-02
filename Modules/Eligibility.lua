@@ -136,6 +136,52 @@ function Eligibility.MatchesExpansionFilter(expansionID, filters)
     return stored == true
 end
 
+local function trimSearchQuery(query)
+    if type(query) ~= "string" then
+        return ""
+    end
+    if strtrim then
+        return strtrim(query)
+    end
+    return (query:match("^%s*(.-)%s*$")) or query
+end
+
+local function containsIgnoreCase(haystack, needle)
+    if type(haystack) ~= "string" or haystack == "" then
+        return false
+    end
+    if haystack:find(needle, 1, true) then
+        return true
+    end
+    local lowerHaystack = strlower and strlower(haystack) or haystack:lower()
+    local lowerNeedle = strlower and strlower(needle) or needle:lower()
+    return lowerHaystack:find(lowerNeedle, 1, true) ~= nil
+end
+
+function Eligibility.FilterItemsBySearch(items, query)
+    query = trimSearchQuery(query)
+    if query == "" or type(items) ~= "table" then
+        return items
+    end
+
+    local numeric = query:match("^%d+$")
+    local filtered = {}
+    for index = 1, #items do
+        local entry = items[index]
+        local matched = containsIgnoreCase(entry.itemName, query)
+            or containsIgnoreCase(entry.slotName, query)
+            or containsIgnoreCase(entry.bindLabel, query)
+        if not matched and numeric and entry.itemLevel then
+            local levelText = tostring(math.floor(entry.itemLevel + 0.5))
+            matched = levelText:find(query, 1, true) ~= nil
+        end
+        if matched then
+            filtered[#filtered + 1] = entry
+        end
+    end
+    return filtered
+end
+
 -- Returns blocked, tooltipReady. Missing lines means not ready, not "allowed".
 local function tooltipBlocksDisenchant(bag, slot)
     -- Soulbound / vendor items that show ITEM_DISENCHANT_NOT_DISENCHANTABLE.

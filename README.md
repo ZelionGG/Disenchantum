@@ -83,6 +83,7 @@ A keybind is also available: **Disenchant next queued item**.
 - Quality filters (Uncommon, Rare, Epic)
 - Expansion filters, including current expansion only
 - Order and group bags by name, item level, quality, or armor type
+- Search bags by name, slot, bind, or item level; Add all uses the same list
 - Right-click to ignore an item (hidden from Bags and Add all)
 - Confirmation before queueing crafted gear
 

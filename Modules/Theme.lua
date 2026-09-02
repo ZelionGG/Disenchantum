@@ -295,6 +295,95 @@ function Theme.CreateCheckbox(parent, width, text)
     return checkbox
 end
 
+function Theme.CreateSearchBox(parent, width, height)
+    height = height or 32
+    local wrap = Theme.CreatePanel(parent, Theme.colors.input, Theme.colors.borderSoft)
+    wrap:SetSize(width or 200, height)
+    wrap:EnableMouse(true)
+
+    local editBox = CreateFrame("EditBox", nil, wrap)
+    editBox:SetAutoFocus(false)
+    editBox:SetFontObject(GameFontHighlight)
+    editBox:SetTextColor(Theme.UnpackColor(Theme.colors.text))
+    editBox:SetTextInsets(0, 0, 0, 0)
+    editBox:SetMaxLetters(80)
+    editBox:SetPoint("TOPLEFT", wrap, "TOPLEFT", 10, 0)
+    editBox:SetPoint("BOTTOMRIGHT", wrap, "BOTTOMRIGHT", -36, 0)
+
+    local placeholder = Theme.CreateText(wrap, SEARCH or "Search", "muted")
+    placeholder:SetPoint("LEFT", wrap, "LEFT", 10, 0)
+    placeholder:SetPoint("RIGHT", wrap, "RIGHT", -36, 0)
+
+    local clear = Theme.CreateButton(wrap, 24, 24, "X", "secondary")
+    clear:SetPoint("RIGHT", wrap, "RIGHT", -4, 0)
+    clear.labelOffsetX = 1
+    clear.labelOffsetY = 1
+    clear.Label:ClearAllPoints()
+    clear.Label:SetPoint("CENTER", 1, 1)
+    clear:Hide()
+
+    local function refreshChrome()
+        local focused = editBox:HasFocus()
+        local text = editBox:GetText() or ""
+        local hasText = text ~= ""
+        local border = focused and Theme.colors.accentAlt or Theme.colors.borderSoft
+        Theme.ApplySurface(wrap, Theme.colors.input, border)
+        placeholder:SetShown(not hasText and not focused)
+        clear:SetShown(hasText)
+    end
+
+    wrap.EditBox = editBox
+
+    function wrap:GetText()
+        return self.EditBox:GetText() or ""
+    end
+
+    function wrap:SetText(value)
+        self.EditBox:SetText(value or "")
+        refreshChrome()
+    end
+
+    function wrap:SetOnTextChanged(callback)
+        self.onTextChanged = callback
+    end
+
+    function wrap:SetOnFocusGained(callback)
+        self.onFocusGained = callback
+    end
+
+    wrap:SetScript("OnMouseDown", function()
+        editBox:SetFocus()
+    end)
+
+    editBox:SetScript("OnEditFocusGained", function()
+        refreshChrome()
+        if wrap.onFocusGained then
+            wrap.onFocusGained()
+        end
+    end)
+    editBox:SetScript("OnEditFocusLost", refreshChrome)
+    editBox:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+    end)
+    editBox:SetScript("OnEnterPressed", function(self)
+        self:ClearFocus()
+    end)
+    editBox:SetScript("OnTextChanged", function()
+        refreshChrome()
+        if wrap.onTextChanged then
+            wrap.onTextChanged(wrap:GetText())
+        end
+    end)
+
+    clear:SetScript("OnClick", function()
+        editBox:SetText("")
+        editBox:SetFocus()
+    end)
+
+    refreshChrome()
+    return wrap
+end
+
 function Theme.CreateItemIcon(parent, size)
     size = size or 40
     local wrap = Theme.CreatePanel(parent, { 0.02, 0.02, 0.02, 1 }, Theme.colors.border)
