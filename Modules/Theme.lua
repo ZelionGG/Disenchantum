@@ -295,9 +295,11 @@ function Theme.CreateCheckbox(parent, width, text)
     return checkbox
 end
 
-function Theme.CreateSearchBox(parent, width, height)
+function Theme.CreateSearchBox(parent, width, height, placeholderText)
     height = height or 32
-    local wrap = Theme.CreatePanel(parent, Theme.colors.input, Theme.colors.borderSoft)
+    local accent = Theme.colors.accent
+    local borderIdle = { accent[1], accent[2], accent[3], 0.4 }
+    local wrap = Theme.CreatePanel(parent, Theme.colors.input, borderIdle)
     wrap:SetSize(width or 200, height)
     wrap:EnableMouse(true)
 
@@ -310,9 +312,13 @@ function Theme.CreateSearchBox(parent, width, height)
     editBox:SetPoint("TOPLEFT", wrap, "TOPLEFT", 10, 0)
     editBox:SetPoint("BOTTOMRIGHT", wrap, "BOTTOMRIGHT", -36, 0)
 
-    local placeholder = Theme.CreateText(wrap, SEARCH or "Search", "muted")
+    local placeholder = Theme.CreateText(wrap, placeholderText or SEARCH or "Search", "label")
     placeholder:SetPoint("LEFT", wrap, "LEFT", 10, 0)
     placeholder:SetPoint("RIGHT", wrap, "RIGHT", -36, 0)
+    placeholder:SetWordWrap(false)
+    if placeholder.SetMaxLines then
+        placeholder:SetMaxLines(1)
+    end
 
     local clear = Theme.CreateButton(wrap, 24, 24, "X", "secondary")
     clear:SetPoint("RIGHT", wrap, "RIGHT", -4, 0)
@@ -326,7 +332,7 @@ function Theme.CreateSearchBox(parent, width, height)
         local focused = editBox:HasFocus()
         local text = editBox:GetText() or ""
         local hasText = text ~= ""
-        local border = focused and Theme.colors.accentAlt or Theme.colors.borderSoft
+        local border = focused and Theme.colors.accentAlt or borderIdle
         Theme.ApplySurface(wrap, Theme.colors.input, border)
         placeholder:SetShown(not hasText and not focused)
         clear:SetShown(hasText)

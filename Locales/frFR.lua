@@ -46,6 +46,7 @@ L["EMPTY_SESSION"] = "Aucun désenchantement cette session."
 L["FMT_CAST_REMAINING"] = "%.1fs" -- @no-translate
 L["EMPTY_BAGS"] = "Aucun objet désenchantable dans les sacs."
 L["EMPTY_SEARCH"] = "Aucun objet ne correspond à votre recherche."
+L["SEARCH_CRITERIA"] = "nom, ilvl, slot, lien, extension"
 L["FMT_BAGS_HIDDEN_BY_FILTERS"] = "%d objets désenchantables masqués par les filtres. Ouvrez Filtres pour les afficher."
 L["EMPTY_BLACKLIST"] = "Aucun objet ignoré."
 L["EMPTY_QUEUE"] = "File vide. Ajoutez des objets depuis vos sacs."

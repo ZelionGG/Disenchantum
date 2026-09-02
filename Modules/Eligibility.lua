@@ -171,6 +171,7 @@ function Eligibility.FilterItemsBySearch(items, query)
         local matched = containsIgnoreCase(entry.itemName, query)
             or containsIgnoreCase(entry.slotName, query)
             or containsIgnoreCase(entry.bindLabel, query)
+            or containsIgnoreCase(Eligibility.GetExpansionName(entry.expansionID), query)
         if not matched and numeric and entry.itemLevel then
             local levelText = tostring(math.floor(entry.itemLevel + 0.5))
             matched = levelText:find(query, 1, true) ~= nil

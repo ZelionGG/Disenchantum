@@ -1924,7 +1924,12 @@ function MainWindow:Initialize()
         MainWindow:ToggleBagMenu("group")
     end)
 
-    self.bagSearch = Theme.CreateSearchBox(self.sidebar, SIDEBAR_WIDTH - 32, 32)
+    local searchPlaceholder = SEARCH or "Search"
+    local searchCriteria = L["SEARCH_CRITERIA"]
+    if searchCriteria and searchCriteria ~= "" then
+        searchPlaceholder = searchPlaceholder .. " (" .. searchCriteria .. ")"
+    end
+    self.bagSearch = Theme.CreateSearchBox(self.sidebar, SIDEBAR_WIDTH - 32, 32, searchPlaceholder)
     self.bagSearch:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -112)
     self.bagSearch:SetPoint("RIGHT", self.sidebar, "RIGHT", -16, 0)
     self.bagSearch:SetOnFocusGained(function()
