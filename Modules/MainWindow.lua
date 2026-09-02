@@ -1659,6 +1659,10 @@ function MainWindow:RefreshFilters(snapshot)
         self.filterEpic:SetCheckedState(filters.epic == true)
         self.filterEpic:SetCount(qualityCounts.epic)
     end
+    if self.filterExcludeCrafted then
+        self.filterExcludeCrafted:SetCheckedState(filters.excludeCrafted == true)
+        self.filterExcludeCrafted:SetCount(snapshot.craftedCount)
+    end
     if self.filterCurrentExpansion then
         self.filterCurrentExpansion:SetCheckedState(currentOnly)
         self.filterCurrentExpansion:SetCount(currentExpansionCount)
@@ -2176,7 +2180,7 @@ function MainWindow:Initialize()
         MainWindow:CloseBagMenus()
     end)
 
-    self.filtersPanel = Theme.CreateCard(self.filtersOverlay, 320, 430)
+    self.filtersPanel = Theme.CreateCard(self.filtersOverlay, 320, 500)
     self.filtersPanel:SetPoint("TOPLEFT", self.filtersButton, "BOTTOMLEFT", 0, -8)
     self.filtersPanel:EnableMouse(true)
     self.filtersPanel:Hide()
@@ -2224,8 +2228,21 @@ function MainWindow:Initialize()
     self.filterEpic:SetHeight(26)
     bindQualityFilter(self.filterEpic, "epic")
 
+    local craftedHeading = Theme.CreateText(self.filtersPanel, L["FILTER_CRAFTED"], "heading")
+    craftedHeading:SetPoint("TOPLEFT", self.filterEpic, "BOTTOMLEFT", 0, -16)
+
+    self.filterExcludeCrafted = Theme.CreateCheckbox(self.filtersPanel, 288, L["FILTER_EXCLUDE_CRAFTED"])
+    self.filterExcludeCrafted:SetPoint("TOPLEFT", craftedHeading, "BOTTOMLEFT", 0, -10)
+    self.filterExcludeCrafted:SetHeight(26)
+    self.filterExcludeCrafted:SetScript("OnClick", function(selfBox)
+        local filters = addon.db.global.filters
+        filters.excludeCrafted = not filters.excludeCrafted
+        selfBox:SetCheckedState(filters.excludeCrafted == true)
+        MainWindow:Refresh()
+    end)
+
     local expansionHeading = Theme.CreateText(self.filtersPanel, EXPANSION_FILTER_TEXT, "heading")
-    expansionHeading:SetPoint("TOPLEFT", self.filterEpic, "BOTTOMLEFT", 0, -16)
+    expansionHeading:SetPoint("TOPLEFT", self.filterExcludeCrafted, "BOTTOMLEFT", 0, -16)
 
     self.filterCurrentExpansion = Theme.CreateCheckbox(self.filtersPanel, 288, L["FILTER_CURRENT_EXPANSION"])
     self.filterCurrentExpansion:SetPoint("TOPLEFT", expansionHeading, "BOTTOMLEFT", 0, -10)

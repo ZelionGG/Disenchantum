@@ -13,6 +13,7 @@ addon.AceDBDefaults = {
             rare = true,
             epic = true,
             currentExpansionOnly = false,
+            excludeCrafted = false,
             expansions = {},
         },
         bagView = {
@@ -75,6 +76,9 @@ function addon.NormalizeDatabase(database)
     end
     if filters.currentExpansionOnly == nil then
         filters.currentExpansionOnly = false
+    end
+    if filters.excludeCrafted == nil then
+        filters.excludeCrafted = false
     end
     ensureExpansionFilters(filters)
 

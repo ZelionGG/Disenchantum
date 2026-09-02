@@ -341,6 +341,10 @@ function Eligibility.IsItemDisenchantable(bag, slot, options)
         end
     end
 
+    if not Eligibility.MatchesCraftedFilter(info.hyperlink or info.itemID, filters) then
+        return false, info
+    end
+
     return true, info
 end
 
@@ -355,6 +359,14 @@ function Eligibility.IsCraftedEquipment(itemIDOrLink)
         return C_TradeSkillUI.GetItemCraftedQualityInfo(itemIDOrLink) ~= nil
     end
     return false
+end
+
+function Eligibility.MatchesCraftedFilter(itemIDOrLink, filters)
+    filters = filters or (addon.db and addon.db.global and addon.db.global.filters)
+    if not filters or filters.excludeCrafted ~= true then
+        return true
+    end
+    return not Eligibility.IsCraftedEquipment(itemIDOrLink)
 end
 
 function Eligibility.IsBlacklisted(itemID)
@@ -497,6 +509,7 @@ function Eligibility.CollectSnapshot(options)
     }
     local expansionCounts = {}
     local currentExpansionCount = 0
+    local craftedCount = 0
     local hiddenByFilters = 0
     local currentExpansion = Eligibility.GetCurrentExpansionLevel()
     local firstBag, lastBag = Eligibility.GetBagRange()
@@ -508,12 +521,14 @@ function Eligibility.CollectSnapshot(options)
             if ok and info and not Eligibility.IsBlacklisted(info.itemID) then
                 local entry = Eligibility.BuildEntry(bag, slot, info)
                 if entry and entry.guid then
+                    local itemKey = entry.itemLink or entry.itemID
+                    local passesCrafted = Eligibility.MatchesCraftedFilter(itemKey)
                     if not countSkipGuids[entry.guid] then
                         local qualityKey = getQualityKey(entry.quality)
-                        if qualityKey and Eligibility.MatchesExpansionFilter(entry.expansionID) then
+                        if qualityKey and Eligibility.MatchesExpansionFilter(entry.expansionID) and passesCrafted then
                             qualityCounts[qualityKey] = qualityCounts[qualityKey] + 1
                         end
-                        if Eligibility.MatchesQualityFilter(entry.quality) then
+                        if Eligibility.MatchesQualityFilter(entry.quality) and passesCrafted then
                             if entry.expansionID ~= nil then
                                 expansionCounts[entry.expansionID] = (expansionCounts[entry.expansionID] or 0) + 1
                             end
@@ -521,11 +536,18 @@ function Eligibility.CollectSnapshot(options)
                                 currentExpansionCount = currentExpansionCount + 1
                             end
                         end
+                        if Eligibility.MatchesQualityFilter(entry.quality)
+                            and Eligibility.MatchesExpansionFilter(entry.expansionID)
+                            and Eligibility.IsCraftedEquipment(itemKey)
+                        then
+                            craftedCount = craftedCount + 1
+                        end
                     end
 
                     if not skipGuids[entry.guid] then
                         if Eligibility.MatchesQualityFilter(entry.quality)
                             and Eligibility.MatchesExpansionFilter(entry.expansionID)
+                            and passesCrafted
                         then
                             items[#items + 1] = entry
                         else
@@ -544,6 +566,7 @@ function Eligibility.CollectSnapshot(options)
         qualityCounts = qualityCounts,
         expansionCounts = expansionCounts,
         currentExpansionCount = currentExpansionCount,
+        craftedCount = craftedCount,
         hiddenByFilters = hiddenByFilters,
     }
 end
