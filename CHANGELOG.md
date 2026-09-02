@@ -1,14 +1,12 @@
 # Disenchantum
 
-## [1.1](https://github.com/ZelionGG/Disenchantum/releases/tag/1.1) (2026-08-29)
+## [1.2](https://github.com/ZelionGG/Disenchantum/releases/tag/1.2) (2026-08-31)
 
-[Full Changelog](https://github.com/ZelionGG/Disenchantum/compare/1.0...1.1) [Previous Releases](https://github.com/ZelionGG/Disenchantum/releases)
+[Full Changelog](https://github.com/ZelionGG/Disenchantum/compare/1.1...1.2) [Previous Releases](https://github.com/ZelionGG/Disenchantum/releases)
 
-> **Version 1.1 - Enchanter warning, per-character ignore, and bag queue drag**
+> **Version 1.2 - Use knowledge items from the session recap**
 >
-> Warn when Disenchant is unknown, keep the ignore list per character, and add or remove queue items with plus, double-click, or drag.
+> Click profession knowledge reagents in the session recap to get their knowledge points directly.
 
-- 🆕 _**NEW** -_ Yellow warning banner when the character does not know **Disenchant**, with the button kept disabled.
-- 🆕 _**NEW** -_ Add bag items with **+**, **double-click**, or **drag** onto the Queue (insert line). A single click no longer queues. Drag a queue tile back onto Bags to remove it from the Queue.
-- 🛠️ _**IMPROVEMENT** -_ A ghost tile follows the cursor while dragging.
-- 🐞 _**BUGFIX** -_ Ignore list is stored per character instead of being shared across the account.
+- 🆕 _**NEW** -_ Click a session recap chip that has a Use effect (such as profession knowledge) to use without searching in your bags.
+- 🆕 _**NEW** -_ Click the session recap +N chip to open the rest of the session recap.
