@@ -136,40 +136,84 @@ function Eligibility.MatchesExpansionFilter(expansionID, filters)
     return stored == true
 end
 
+local function trimSearchQuery(query)
+    if type(query) ~= "string" then
+        return ""
+    end
+    if strtrim then
+        return strtrim(query)
+    end
+    return (query:match("^%s*(.-)%s*$")) or query
+end
+
+local function containsIgnoreCase(haystack, needle)
+    if type(haystack) ~= "string" or haystack == "" then
+        return false
+    end
+    if haystack:find(needle, 1, true) then
+        return true
+    end
+    local lowerHaystack = strlower and strlower(haystack) or haystack:lower()
+    local lowerNeedle = strlower and strlower(needle) or needle:lower()
+    return lowerHaystack:find(lowerNeedle, 1, true) ~= nil
+end
+
+function Eligibility.FilterItemsBySearch(items, query)
+    query = trimSearchQuery(query)
+    if query == "" or type(items) ~= "table" then
+        return items
+    end
+
+    local numeric = query:match("^%d+$")
+    local filtered = {}
+    for index = 1, #items do
+        local entry = items[index]
+        local matched = containsIgnoreCase(entry.itemName, query)
+            or containsIgnoreCase(entry.slotName, query)
+            or containsIgnoreCase(entry.bindLabel, query)
+            or containsIgnoreCase(Eligibility.GetExpansionName(entry.expansionID), query)
+        if not matched and numeric and entry.itemLevel then
+            local levelText = tostring(math.floor(entry.itemLevel + 0.5))
+            matched = levelText:find(query, 1, true) ~= nil
+        end
+        if matched then
+            filtered[#filtered + 1] = entry
+        end
+    end
+    return filtered
+end
+
+-- Returns blocked, tooltipReady. Missing lines means not ready, not "allowed".
 local function tooltipBlocksDisenchant(bag, slot)
     -- Soulbound / vendor items that show ITEM_DISENCHANT_NOT_DISENCHANTABLE.
     if not C_TooltipInfo or not C_TooltipInfo.GetBagItem then
-        return false
+        return false, false
     end
 
     local blocked = _G.ITEM_DISENCHANT_NOT_DISENCHANTABLE
     if type(blocked) ~= "string" or blocked == "" then
-        return false
+        return false, false
     end
 
     local data = C_TooltipInfo.GetBagItem(bag, slot)
     local lines = data and data.lines
     if not lines then
-        return false
+        return false, false
     end
 
     for index = 1, #lines do
         local leftText = lines[index] and lines[index].leftText
         if type(leftText) == "string" and leftText:find(blocked, 1, true) then
-            return true
+            return true, true
         end
     end
 
-    return false
+    return false, true
 end
 
 local candidateCache = {}
 local expansionByItemID = {}
 local requestedItemIDs = {}
-
-function Eligibility.InvalidateCache()
-    wipe(candidateCache)
-end
 
 local function requestItemData(bag, slot, itemID)
     if itemID and requestedItemIDs[itemID] then
@@ -259,7 +303,8 @@ function Eligibility.IsDisenchantCandidate(bag, slot)
         return false, info
     end
 
-    if tooltipBlocksDisenchant(bag, slot) then
+    local blocked, tooltipReady = tooltipBlocksDisenchant(bag, slot)
+    if blocked then
         if guid then
             candidateCache[guid] = { ok = false }
         end
@@ -267,7 +312,8 @@ function Eligibility.IsDisenchantCandidate(bag, slot)
     end
 
     info.quality = quality
-    if guid then
+    -- Only cache a positive once the tooltip actually loaded.
+    if guid and tooltipReady then
         candidateCache[guid] = { ok = true, quality = quality }
     end
     return true, info
@@ -295,6 +341,10 @@ function Eligibility.IsItemDisenchantable(bag, slot, options)
         end
     end
 
+    if not Eligibility.MatchesCraftedFilter(info.hyperlink or info.itemID, filters) then
+        return false, info
+    end
+
     return true, info
 end
 
@@ -309,6 +359,14 @@ function Eligibility.IsCraftedEquipment(itemIDOrLink)
         return C_TradeSkillUI.GetItemCraftedQualityInfo(itemIDOrLink) ~= nil
     end
     return false
+end
+
+function Eligibility.MatchesCraftedFilter(itemIDOrLink, filters)
+    filters = filters or (addon.db and addon.db.global and addon.db.global.filters)
+    if not filters or filters.excludeCrafted ~= true then
+        return true
+    end
+    return not Eligibility.IsCraftedEquipment(itemIDOrLink)
 end
 
 function Eligibility.IsBlacklisted(itemID)
@@ -414,6 +472,29 @@ function Eligibility.GetBagRange()
     return firstBag, lastBag
 end
 
+function Eligibility.IndexBagLocations()
+    local locations = {}
+    local firstBag, lastBag = Eligibility.GetBagRange()
+    for bag = firstBag, lastBag do
+        local numSlots = C_Container.GetContainerNumSlots(bag) or 0
+        for slot = 1, numSlots do
+            local guid = Eligibility.GetItemGUID(bag, slot)
+            if guid then
+                locations[guid] = { bag = bag, slot = slot }
+            end
+        end
+    end
+    return locations
+end
+
+local function pruneCandidateCache(locations)
+    for guid in pairs(candidateCache) do
+        if not locations[guid] then
+            candidateCache[guid] = nil
+        end
+    end
+end
+
 function Eligibility.CollectSnapshot(options)
     options = options or {}
     -- skipGuids: omit from the bag list (queued + just consumed).
@@ -428,6 +509,7 @@ function Eligibility.CollectSnapshot(options)
     }
     local expansionCounts = {}
     local currentExpansionCount = 0
+    local craftedCount = 0
     local hiddenByFilters = 0
     local currentExpansion = Eligibility.GetCurrentExpansionLevel()
     local firstBag, lastBag = Eligibility.GetBagRange()
@@ -439,12 +521,14 @@ function Eligibility.CollectSnapshot(options)
             if ok and info and not Eligibility.IsBlacklisted(info.itemID) then
                 local entry = Eligibility.BuildEntry(bag, slot, info)
                 if entry and entry.guid then
+                    local itemKey = entry.itemLink or entry.itemID
+                    local passesCrafted = Eligibility.MatchesCraftedFilter(itemKey)
                     if not countSkipGuids[entry.guid] then
                         local qualityKey = getQualityKey(entry.quality)
-                        if qualityKey and Eligibility.MatchesExpansionFilter(entry.expansionID) then
+                        if qualityKey and Eligibility.MatchesExpansionFilter(entry.expansionID) and passesCrafted then
                             qualityCounts[qualityKey] = qualityCounts[qualityKey] + 1
                         end
-                        if Eligibility.MatchesQualityFilter(entry.quality) then
+                        if Eligibility.MatchesQualityFilter(entry.quality) and passesCrafted then
                             if entry.expansionID ~= nil then
                                 expansionCounts[entry.expansionID] = (expansionCounts[entry.expansionID] or 0) + 1
                             end
@@ -452,11 +536,18 @@ function Eligibility.CollectSnapshot(options)
                                 currentExpansionCount = currentExpansionCount + 1
                             end
                         end
+                        if Eligibility.MatchesQualityFilter(entry.quality)
+                            and Eligibility.MatchesExpansionFilter(entry.expansionID)
+                            and Eligibility.IsCraftedEquipment(itemKey)
+                        then
+                            craftedCount = craftedCount + 1
+                        end
                     end
 
                     if not skipGuids[entry.guid] then
                         if Eligibility.MatchesQualityFilter(entry.quality)
                             and Eligibility.MatchesExpansionFilter(entry.expansionID)
+                            and passesCrafted
                         then
                             items[#items + 1] = entry
                         else
@@ -468,11 +559,14 @@ function Eligibility.CollectSnapshot(options)
         end
     end
 
+    pruneCandidateCache(Eligibility.IndexBagLocations())
+
     return {
         items = items,
         qualityCounts = qualityCounts,
         expansionCounts = expansionCounts,
         currentExpansionCount = currentExpansionCount,
+        craftedCount = craftedCount,
         hiddenByFilters = hiddenByFilters,
     }
 end

@@ -291,7 +291,7 @@ function Changelog.SelectVersion(versionKey)
             { key = "important", label = (L and L["CHANGELOG_IMPORTANT"]) or "Important" },
             { key = "new", label = (L and L["CHANGELOG_NEW"]) or "New" },
             { key = "bugfix", label = (L and L["CHANGELOG_BUGFIXES"]) or "Bugfixes" },
-            { key = "improvment", label = (L and L["CHANGELOG_IMPROVEMENT"]) or "Improvement" },
+            { key = "improvement", label = (L and L["CHANGELOG_IMPROVEMENT"]) or "Improvement" },
         }
         for index = 1, #sections do
             local section = sections[index]

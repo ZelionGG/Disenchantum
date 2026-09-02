@@ -22,6 +22,8 @@ local BAG_TITLE_RIGHT_INSET = 50
 local BAG_TITLE_CRAFTED_INSET = BAG_TITLE_RIGHT_INSET + BAG_CRAFTED_ICON_SIZE + BAG_CRAFTED_ICON_GAP
 local SESSION_CHIP_SIZE = 28
 local SESSION_CHIP_GAP = 6
+local SESSION_OVERFLOW_COLS = 6
+local SESSION_OVERFLOW_MAX_HEIGHT = 180
 local QUEUE_DRAG_THRESHOLD = 6
 local QUEUE_DOUBLE_CLICK = 0.35
 
@@ -72,6 +74,78 @@ local function createCraftedIcon(parent, size, atlas)
     icon:SetSize(size, size)
     icon:Hide()
     return icon
+end
+
+local function itemHasUseSpell(itemID)
+    if not itemID or not C_Item.GetItemSpell then
+        return false
+    end
+    local spellName, spellID = C_Item.GetItemSpell(itemID)
+    if spellName or spellID then
+        return true
+    end
+    if C_Item.RequestLoadItemDataByID then
+        C_Item.RequestLoadItemDataByID(itemID)
+    end
+    return false
+end
+
+local function bagItemCount(itemID)
+    if not itemID or not C_Item.GetItemCount then
+        return 0
+    end
+    return C_Item.GetItemCount(itemID) or 0
+end
+
+local function applySessionChipUse(chip, itemID)
+    local hasUse = itemHasUseSpell(itemID)
+    local count = bagItemCount(itemID)
+    local canUse = not chip.isOverflow and hasUse and count > 0
+    chip.canUse = canUse
+
+    if canUse then
+        chip:SetAttribute("type", "item")
+        chip:SetAttribute("item", "item:" .. itemID)
+    else
+        chip:SetAttribute("type", nil)
+        chip:SetAttribute("item", nil)
+    end
+
+    if chip.IconWrap and chip.IconWrap.Texture then
+        chip.IconWrap.Texture:SetDesaturated(hasUse and count <= 0)
+    end
+    if chip.IconWrap and chip.IconWrap.SetUseGlow then
+        chip.IconWrap:SetUseGlow(canUse)
+    end
+end
+
+local function pinUsableReagents(reagents)
+    if #reagents < 2 then
+        return reagents
+    end
+
+    local usable = {}
+    local rest = {}
+    for index = 1, #reagents do
+        local entry = reagents[index]
+        if itemHasUseSpell(entry.itemID) then
+            usable[#usable + 1] = entry
+        else
+            rest[#rest + 1] = entry
+        end
+    end
+    if #usable == 0 then
+        return reagents
+    end
+
+    local pinned = {}
+    for index = 1, #usable do
+        pinned[#pinned + 1] = usable[index]
+    end
+    for index = 1, #rest do
+        pinned[#pinned + 1] = rest[index]
+    end
+    return pinned
 end
 
 local function groupReagentsByExpansion(reagents)
@@ -276,14 +350,11 @@ function MainWindow.CollectSnapshot()
     })
 end
 
-function MainWindow:AcquireSessionChip(index)
-    local chip = self.sessionChipPool[index]
-    if chip then
-        return chip
-    end
-
-    chip = CreateFrame("Button", nil, self.sessionChips)
+local function createSessionChip(parent)
+    local chip = CreateFrame("Button", nil, parent, "InsecureActionButtonTemplate")
     chip:SetSize(SESSION_CHIP_SIZE + 2, SESSION_CHIP_SIZE + 2)
+    chip:RegisterForClicks("AnyUp", "AnyDown")
+    chip:SetAttribute("useOnKeyDown", false)
 
     chip.IconWrap = Theme.CreateItemIcon(chip, SESSION_CHIP_SIZE)
     chip.IconWrap:SetAllPoints(chip)
@@ -296,14 +367,132 @@ function MainWindow:AcquireSessionChip(index)
     chip:SetScript("OnEnter", function(selfChip)
         if selfChip.isOverflow then
             showSessionTooltip(selfChip)
-        else
-            showItemTooltip(selfChip, nil, nil, selfChip.itemLink)
+            return
+        end
+        showItemTooltip(selfChip, nil, nil, selfChip.itemLink)
+        if selfChip.canUse then
+            L = L or addon.L
+            local r, g, b = Theme.UnpackColor(Theme.colors.accent)
+            GameTooltip:AddLine(L["TOOLTIP_CLICK_TO_USE"], r, g, b)
+            GameTooltip:Show()
         end
     end)
     chip:SetScript("OnLeave", hideTooltip)
+    return chip
+end
+
+local function paintSessionChip(chip, entry)
+    L = L or addon.L
+    chip.isOverflow = false
+    chip.itemLink = entry.itemLink
+    chip.IconWrap.Texture:Show()
+    chip.IconWrap:SetIcon(entry.icon)
+    chip.IconWrap:SetQuality(entry.quality)
+    local craftingInfo = getCraftingQualityInfo(entry.itemLink or entry.itemID)
+    chip.IconWrap:SetCraftingQuality(craftingInfo and craftingInfo.iconInventory)
+    chip.Count:ClearAllPoints()
+    chip.Count:SetPoint("BOTTOMRIGHT", chip.IconWrap, "BOTTOMRIGHT", -1, 1)
+    chip.Count:SetText((L["FMT_SESSION_CHIP_COUNT"]):format(entry.count))
+    applySessionChipUse(chip, entry.itemID)
+end
+
+function MainWindow:AcquireSessionChip(index)
+    local chip = self.sessionChipPool[index]
+    if chip then
+        return chip
+    end
+
+    chip = createSessionChip(self.sessionChips)
+    -- AnyDown+AnyUp would toggle open then closed on the same click.
+    chip:HookScript("OnClick", function(selfChip, _, down)
+        if selfChip.isOverflow and not down then
+            MainWindow:ToggleSessionOverflow()
+        end
+    end)
 
     self.sessionChipPool[index] = chip
     return chip
+end
+
+function MainWindow:AcquireSessionOverflowChip(index)
+    local chip = self.sessionOverflowChipPool[index]
+    if chip then
+        return chip
+    end
+
+    chip = createSessionChip(self.sessionOverflowContent)
+    self.sessionOverflowChipPool[index] = chip
+    return chip
+end
+
+function MainWindow:RefreshSessionOverflow()
+    if not self.sessionOverflowPanel or not self.sessionOverflowPanel:IsShown() then
+        return
+    end
+
+    L = L or addon.L
+    local hidden = self.sessionHiddenReagents or {}
+    local count = #hidden
+    self.sessionOverflowHeading:SetText((L["FMT_SESSION_MORE"]):format(count))
+
+    local chipWidth = SESSION_CHIP_SIZE + 2
+    local stride = chipWidth + SESSION_CHIP_GAP
+    local cols = SESSION_OVERFLOW_COLS
+    local rows = math.max(1, math.ceil(math.max(count, 1) / cols))
+    local contentWidth = cols * stride - SESSION_CHIP_GAP
+    local contentHeight = rows * stride - SESSION_CHIP_GAP
+    self.sessionOverflowContent:SetSize(contentWidth, math.max(1, contentHeight))
+
+    local pad = 16
+    local head = 40
+    local gridHeight = math.min(SESSION_OVERFLOW_MAX_HEIGHT, math.max(chipWidth, contentHeight))
+    self.sessionOverflowPanel:SetSize(pad + contentWidth + 22, head + gridHeight + pad)
+
+    if self.sessionOverflowChip then
+        self.sessionOverflowPanel:ClearAllPoints()
+        self.sessionOverflowPanel:SetPoint("BOTTOM", self.sessionOverflowChip, "TOP", 0, 8)
+    end
+
+    local pool = self.sessionOverflowChipPool
+    if not pool then
+        return
+    end
+    for index = 1, count do
+        local chip = self:AcquireSessionOverflowChip(index)
+        paintSessionChip(chip, hidden[index])
+        local col = (index - 1) % cols
+        local row = math.floor((index - 1) / cols)
+        chip:ClearAllPoints()
+        chip:SetPoint("TOPLEFT", self.sessionOverflowContent, "TOPLEFT", col * stride, -row * stride)
+        chip:Show()
+    end
+    for index = count + 1, #pool do
+        applySessionChipUse(pool[index], nil)
+        pool[index]:Hide()
+    end
+
+    if self.sessionOverflowScroll and self.sessionOverflowScroll.UpdateScrollBar then
+        self.sessionOverflowScroll:UpdateScrollBar()
+    end
+end
+
+function MainWindow:ToggleSessionOverflow()
+    if self.sessionOverflowPanel and self.sessionOverflowPanel:IsShown() then
+        self:CloseBagMenus()
+        return
+    end
+
+    local hidden = self.sessionHiddenReagents
+    if not hidden or #hidden == 0 or not self.filtersOverlay or not self.sessionOverflowPanel then
+        return
+    end
+
+    self:CloseBagMenus()
+    self.filtersOverlay:Show()
+    self.filtersOverlay:SetFrameLevel((self.frame:GetFrameLevel() or 100) + 20)
+    self.sessionOverflowPanel:SetFrameLevel(self.filtersOverlay:GetFrameLevel() + 2)
+    self.sessionOverflowPanel:Show()
+    self:RefreshSessionOverflow()
 end
 
 function MainWindow:RefreshSession()
@@ -319,6 +508,7 @@ function MainWindow:RefreshSession()
     self.sessionCountHit:SetSize(countWidth, 22)
 
     local reagents = (session and session.GetReagents and session.GetReagents()) or {}
+    reagents = pinUsableReagents(reagents)
     local hasReagents = #reagents > 0
     self.sessionEmpty:SetShown(itemCount == 0 and not hasReagents)
     self.sessionChips:SetShown(hasReagents)
@@ -336,26 +526,23 @@ function MainWindow:RefreshSession()
         end
     end
 
+    local hidden = {}
+    for index = shown + 1, #reagents do
+        hidden[#hidden + 1] = reagents[index]
+    end
+    self.sessionHiddenReagents = hidden
+
     local pool = self.sessionChipPool
     for index = 1, shown do
-        local entry = reagents[index]
         local chip = self:AcquireSessionChip(index)
-        chip.isOverflow = false
-        chip.itemLink = entry.itemLink
-        chip.IconWrap.Texture:Show()
-        chip.IconWrap:SetIcon(entry.icon)
-        chip.IconWrap:SetQuality(entry.quality)
-        local craftingInfo = getCraftingQualityInfo(entry.itemLink or entry.itemID)
-        chip.IconWrap:SetCraftingQuality(craftingInfo and craftingInfo.iconInventory)
-        chip.Count:ClearAllPoints()
-        chip.Count:SetPoint("BOTTOMRIGHT", chip.IconWrap, "BOTTOMRIGHT", -1, 1)
-        chip.Count:SetText((L["FMT_SESSION_CHIP_COUNT"]):format(entry.count))
+        paintSessionChip(chip, reagents[index])
         chip:ClearAllPoints()
         chip:SetPoint("LEFT", self.sessionChips, "LEFT", (index - 1) * stride, 0)
         chip:Show()
     end
 
     local used = shown
+    self.sessionOverflowChip = nil
     if overflow > 0 then
         used = shown + 1
         local chip = self:AcquireSessionChip(used)
@@ -367,13 +554,26 @@ function MainWindow:RefreshSession()
         chip.Count:ClearAllPoints()
         chip.Count:SetPoint("CENTER", chip.IconWrap, "CENTER", 0, 0)
         chip.Count:SetText((L["FMT_SESSION_MORE"]):format(overflow))
+        applySessionChipUse(chip, nil)
         chip:ClearAllPoints()
         chip:SetPoint("LEFT", self.sessionChips, "LEFT", shown * stride, 0)
         chip:Show()
+        self.sessionOverflowChip = chip
     end
 
     for index = used + 1, #pool do
-        pool[index]:Hide()
+        local chip = pool[index]
+        chip.isOverflow = true
+        applySessionChipUse(chip, nil)
+        chip:Hide()
+    end
+
+    if self.sessionOverflowPanel and self.sessionOverflowPanel:IsShown() then
+        if overflow == 0 then
+            self:CloseBagMenus()
+        else
+            self:RefreshSessionOverflow()
+        end
     end
 end
 
@@ -414,6 +614,9 @@ function MainWindow:CloseBagMenus()
     end
     if self.blacklistPanel then
         self.blacklistPanel:Hide()
+    end
+    if self.sessionOverflowPanel then
+        self.sessionOverflowPanel:Hide()
     end
 end
 
@@ -481,6 +684,9 @@ function MainWindow:OpenBagMenu(which)
     end
     if self.blacklistPanel then
         self.blacklistPanel:SetShown(which == "blacklist")
+    end
+    if self.sessionOverflowPanel then
+        self.sessionOverflowPanel:Hide()
     end
 
     self.filtersOverlay:Show()
@@ -805,9 +1011,17 @@ function MainWindow:CreateBagHeaderRow()
     return row
 end
 
+function MainWindow:GetSearchQuery()
+    if self.bagSearch and self.bagSearch.GetText then
+        return self.bagSearch:GetText()
+    end
+    return ""
+end
+
 function MainWindow:RefreshBagList(snapshot)
     snapshot = snapshot or MainWindow.CollectSnapshot()
-    local items = snapshot.items
+    local snapshotCount = #snapshot.items
+    local items = Eligibility.FilterItemsBySearch(snapshot.items, self:GetSearchQuery())
     local bagView = bagViewSettings()
     Eligibility.SortBagItems(items, bagView.orderBy, bagView.groupBy)
     local display = Eligibility.BuildBagDisplayList(items, bagView.groupBy)
@@ -864,10 +1078,12 @@ function MainWindow:RefreshBagList(snapshot)
 
     if #items == 0 then
         local hiddenByFilters = snapshot.hiddenByFilters or 0
-        if hiddenByFilters > 0 then
+        if snapshotCount == 0 and hiddenByFilters > 0 then
             self.bagEmpty:SetText((L["FMT_BAGS_HIDDEN_BY_FILTERS"]):format(hiddenByFilters))
-        else
+        elseif snapshotCount == 0 then
             self.bagEmpty:SetText(L["EMPTY_BAGS"])
+        else
+            self.bagEmpty:SetText(L["EMPTY_SEARCH"])
         end
     end
     self.bagEmpty:SetShown(#items == 0)
@@ -971,6 +1187,7 @@ function MainWindow:RefreshQueueDragHighlights()
     end
     self:UpdateQueueInsertLine()
     self:UpdateBagsDropHighlight()
+    self:UpdateBlacklistDropHighlight()
 end
 
 function MainWindow:BeginQueueDrag(row)
@@ -982,6 +1199,11 @@ function MainWindow:BeginQueueDrag(row)
         sourceIndex = row.queueIndex,
         insertIndex = row.queueIndex,
         guid = row.guid,
+        itemID = row.itemID,
+        itemName = row.itemName,
+        itemLink = row.itemLink,
+        icon = row.icon,
+        quality = row.quality,
     }
     self:ShowDragGhost(row)
     self:RefreshQueueDragHighlights()
@@ -1005,6 +1227,7 @@ function MainWindow:UpdateQueueDragFromCursor()
         end
         self:UpdateQueueInsertLine()
         self:UpdateBagsDropHighlight()
+        self:UpdateBlacklistDropHighlight()
         self:UpdateDragGhostPosition()
         return
     end
@@ -1040,6 +1263,7 @@ function MainWindow:UpdateQueueDragFromCursor()
         self:UpdateQueueInsertLine()
     end
     self:UpdateBagsDropHighlight()
+    self:UpdateBlacklistDropHighlight()
     self:UpdateDragGhostPosition()
 end
 
@@ -1051,6 +1275,10 @@ function MainWindow:IsCursorOverBags()
     return self.bagScrollCard and self.bagScrollCard:IsMouseOver()
 end
 
+function MainWindow:IsCursorOverBlacklist()
+    return self.blacklistButton and self.blacklistButton:IsMouseOver()
+end
+
 function MainWindow:UpdateBagsDropHighlight()
     local card = self.bagScrollCard
     local overlay = self.bagDropHighlight
@@ -1058,13 +1286,27 @@ function MainWindow:UpdateBagsDropHighlight()
         return
     end
 
-    local active = self.queueDragState and self:IsCursorOverBags()
+    local active = self.queueDragState and self:IsCursorOverBags() and not self:IsCursorOverBlacklist()
     if active then
         Theme.ApplySurface(card, Theme.colors.cardInset, Theme.colors.accent)
         overlay:Show()
     else
         Theme.ApplySurface(card, Theme.colors.cardInset, Theme.colors.borderMuted)
         overlay:Hide()
+    end
+end
+
+function MainWindow:UpdateBlacklistDropHighlight()
+    local button = self.blacklistButton
+    if not button then
+        return
+    end
+
+    local dragging = self.queueDragState or self.bagDragState
+    if dragging and self:IsCursorOverBlacklist() then
+        Theme.ApplySurface(button, Theme.colors.cardSoft, Theme.colors.accent)
+    else
+        Theme.UpdateButtonColors(button)
     end
 end
 
@@ -1152,6 +1394,11 @@ function MainWindow:BeginBagDrag(row)
         slot = row.slot,
         guid = row.guid,
         insertIndex = Queue.Count() + 1,
+        itemID = row.itemID,
+        itemName = row.itemName,
+        itemLink = row.itemLink,
+        icon = row.icon,
+        quality = row.quality,
     }
     self:ShowDragGhost(row)
     self:RefreshQueueDragHighlights()
@@ -1164,8 +1411,16 @@ function MainWindow:EndBagDrag()
         return
     end
 
+    local overBlacklist = self:IsCursorOverBlacklist()
     self.bagDragState = nil
     self:HideDragGhost()
+    if overBlacklist then
+        self.skipBlacklistClick = true
+        Queue.RequestBlacklist(dragState)
+        self:RefreshQueueDragHighlights()
+        return
+    end
+
     local overQueue = self:IsCursorOverQueue()
     self:RefreshQueueDragHighlights()
     if not overQueue or not dragState.bag or not dragState.slot then
@@ -1190,8 +1445,16 @@ function MainWindow:EndQueueDrag()
         return
     end
 
+    local overBlacklist = self:IsCursorOverBlacklist()
     self.queueDragState = nil
     self:HideDragGhost()
+
+    if overBlacklist then
+        self.skipBlacklistClick = true
+        Queue.RequestBlacklist(dragState)
+        self:RefreshQueueDragHighlights()
+        return
+    end
 
     if self:IsCursorOverBags() then
         Queue.RemoveAt(dragState.sourceIndex)
@@ -1334,6 +1597,7 @@ function MainWindow:CreateQueueRow(index)
         rowFrame.itemLink = entry.itemLink
         rowFrame.itemName = entry.itemName
         rowFrame.quality = entry.quality
+        rowFrame.itemID = entry.itemID
         rowFrame.icon = entry.icon
         rowFrame.itemLevelText = itemLevelText(entry)
         rowFrame.slotText = entry.slotName or ""
@@ -1394,6 +1658,10 @@ function MainWindow:RefreshFilters(snapshot)
     if self.filterEpic then
         self.filterEpic:SetCheckedState(filters.epic == true)
         self.filterEpic:SetCount(qualityCounts.epic)
+    end
+    if self.filterExcludeCrafted then
+        self.filterExcludeCrafted:SetCheckedState(filters.excludeCrafted == true)
+        self.filterExcludeCrafted:SetCount(snapshot.craftedCount)
     end
     if self.filterCurrentExpansion then
         self.filterCurrentExpansion:SetCheckedState(currentOnly)
@@ -1660,12 +1928,29 @@ function MainWindow:Initialize()
         MainWindow:ToggleBagMenu("group")
     end)
 
+    local searchPlaceholder = SEARCH or "Search"
+    local searchCriteria = L["SEARCH_CRITERIA"]
+    if searchCriteria and searchCriteria ~= "" then
+        searchPlaceholder = searchPlaceholder .. " (" .. searchCriteria .. ")"
+    end
+    self.bagSearch = Theme.CreateSearchBox(self.sidebar, SIDEBAR_WIDTH - 32, 32, searchPlaceholder)
+    self.bagSearch:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -112)
+    self.bagSearch:SetPoint("RIGHT", self.sidebar, "RIGHT", -16, 0)
+    self.bagSearch:SetOnFocusGained(function()
+        MainWindow:CloseBagMenus()
+    end)
+    self.bagSearch:SetOnTextChanged(function()
+        if MainWindow.frame and MainWindow.bagEmpty then
+            MainWindow:RefreshBagList()
+        end
+    end)
+
     self.addAllButton = Theme.CreateButton(self.sidebar, 148, 32, L["BUTTON_ADD_ALL"], "primary")
     self.addAllButton:SetPoint("BOTTOMLEFT", self.sidebar, "BOTTOMLEFT", 16, 16)
     self.addAllButton:SetPoint("BOTTOMRIGHT", self.sidebar, "BOTTOMRIGHT", -16, 16)
     self.addAllButton:SetHeight(32)
     self.addAllButton:SetScript("OnClick", function()
-        Queue.AddAllMatching()
+        Queue.AddAllMatching({ search = MainWindow:GetSearchQuery() })
     end)
 
     self.blacklistButton = Theme.CreateButton(self.sidebar, 148, 32, L["BUTTON_BLACKLIST"], "secondary")
@@ -1678,11 +1963,45 @@ function MainWindow:Initialize()
     self.blacklistCount:SetJustifyH("RIGHT")
     Theme.SetFontColor(self.blacklistCount, Theme.colors.textMuted)
     self.blacklistButton:SetScript("OnClick", function()
+        if MainWindow.skipBlacklistClick then
+            MainWindow.skipBlacklistClick = nil
+            return
+        end
+        if MainWindow.bagDragState then
+            MainWindow:EndBagDrag()
+            return
+        end
+        if MainWindow.queueDragState then
+            MainWindow:EndQueueDrag()
+            return
+        end
         MainWindow:ToggleBagMenu("blacklist")
+    end)
+    self.blacklistButton:HookScript("OnMouseUp", function()
+        if MainWindow.bagDragState then
+            MainWindow:EndBagDrag()
+            return
+        end
+        if MainWindow.queueDragState then
+            MainWindow:EndQueueDrag()
+        end
+    end)
+    self.blacklistButton:SetScript("OnUpdate", function()
+        if MainWindow.bagDragState or MainWindow.queueDragState then
+            if not IsMouseButtonDown("LeftButton") then
+                if MainWindow.bagDragState then
+                    MainWindow:EndBagDrag()
+                else
+                    MainWindow:EndQueueDrag()
+                end
+                return
+            end
+            MainWindow:UpdateQueueDragFromCursor()
+        end
     end)
 
     self.bagScrollCard = Theme.CreatePanel(self.sidebar, Theme.colors.cardInset, Theme.colors.borderMuted)
-    self.bagScrollCard:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -118)
+    self.bagScrollCard:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -152)
     self.bagScrollCard:SetPoint("BOTTOMRIGHT", self.blacklistButton, "TOPRIGHT", 0, 10)
     self.bagScrollCard:EnableMouse(true)
     self.bagScrollCard:SetScript("OnMouseUp", function()
@@ -1861,7 +2180,7 @@ function MainWindow:Initialize()
         MainWindow:CloseBagMenus()
     end)
 
-    self.filtersPanel = Theme.CreateCard(self.filtersOverlay, 320, 430)
+    self.filtersPanel = Theme.CreateCard(self.filtersOverlay, 320, 500)
     self.filtersPanel:SetPoint("TOPLEFT", self.filtersButton, "BOTTOMLEFT", 0, -8)
     self.filtersPanel:EnableMouse(true)
     self.filtersPanel:Hide()
@@ -1909,8 +2228,21 @@ function MainWindow:Initialize()
     self.filterEpic:SetHeight(26)
     bindQualityFilter(self.filterEpic, "epic")
 
+    local craftedHeading = Theme.CreateText(self.filtersPanel, L["FILTER_CRAFTED"], "heading")
+    craftedHeading:SetPoint("TOPLEFT", self.filterEpic, "BOTTOMLEFT", 0, -16)
+
+    self.filterExcludeCrafted = Theme.CreateCheckbox(self.filtersPanel, 288, L["FILTER_EXCLUDE_CRAFTED"])
+    self.filterExcludeCrafted:SetPoint("TOPLEFT", craftedHeading, "BOTTOMLEFT", 0, -10)
+    self.filterExcludeCrafted:SetHeight(26)
+    self.filterExcludeCrafted:SetScript("OnClick", function(selfBox)
+        local filters = addon.db.global.filters
+        filters.excludeCrafted = not filters.excludeCrafted
+        selfBox:SetCheckedState(filters.excludeCrafted == true)
+        MainWindow:Refresh()
+    end)
+
     local expansionHeading = Theme.CreateText(self.filtersPanel, EXPANSION_FILTER_TEXT, "heading")
-    expansionHeading:SetPoint("TOPLEFT", self.filterEpic, "BOTTOMLEFT", 0, -16)
+    expansionHeading:SetPoint("TOPLEFT", self.filterExcludeCrafted, "BOTTOMLEFT", 0, -16)
 
     self.filterCurrentExpansion = Theme.CreateCheckbox(self.filtersPanel, 288, L["FILTER_CURRENT_EXPANSION"])
     self.filterCurrentExpansion:SetPoint("TOPLEFT", expansionHeading, "BOTTOMLEFT", 0, -10)
@@ -2017,6 +2349,24 @@ function MainWindow:Initialize()
     self.blacklistEmpty:SetPoint("TOPLEFT", self.blacklistHeading, "BOTTOMLEFT", 0, -12)
     self.blacklistEmpty:SetPoint("RIGHT", self.blacklistPanel, "RIGHT", -16, 0)
     self.blacklistEmpty:SetJustifyV("TOP")
+
+    local overflowStride = SESSION_CHIP_SIZE + 2 + SESSION_CHIP_GAP
+    local overflowInner = SESSION_OVERFLOW_COLS * overflowStride - SESSION_CHIP_GAP
+    self.sessionOverflowPanel = Theme.CreateCard(self.filtersOverlay, overflowInner + 38, 96)
+    self.sessionOverflowPanel:EnableMouse(true)
+    self.sessionOverflowPanel:Hide()
+
+    self.sessionOverflowHeading = Theme.CreateText(self.sessionOverflowPanel, "", "heading")
+    self.sessionOverflowHeading:SetPoint("TOPLEFT", self.sessionOverflowPanel, "TOPLEFT", 16, -14)
+
+    self.sessionOverflowScroll, self.sessionOverflowContent = Theme.CreateStyledScrollArea(
+        self.sessionOverflowPanel,
+        overflowInner
+    )
+    self.sessionOverflowScroll:SetPoint("TOPLEFT", self.sessionOverflowPanel, "TOPLEFT", 16, -40)
+    self.sessionOverflowScroll:SetPoint("BOTTOMRIGHT", self.sessionOverflowPanel, "BOTTOMRIGHT", -22, 10)
+    self.sessionOverflowScroll:EnableMouse(true)
+    self.sessionOverflowChipPool = {}
 
     self.footer = Theme.CreatePanel(frame, Theme.colors.titleBar, Theme.colors.borderSoft)
     self.footer:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 20, 16)

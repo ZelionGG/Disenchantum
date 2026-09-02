@@ -6,9 +6,7 @@ addon.L = LibStub:GetLibrary("AceLocale-3.0"):GetLocale(ADDON_NAME)
 local L = addon.L
 local Theme = addon.Theme
 local MainWindow = addon.MainWindow
-local Queue = addon.Queue
 local SecureDisenchant = addon.SecureDisenchant
-local Eligibility = addon.Eligibility
 
 BINDING_HEADER_DISENCHANTUM = L["BINDING_HEADER"]
 _G["BINDING_NAME_CLICK DisenchantumSecureButton:LeftButton"] = L["BINDING_CAST"]
@@ -85,8 +83,6 @@ local professionButton
 local professionHooksRegistered = false
 
 local function refreshRuntime()
-    Eligibility.InvalidateCache()
-    Queue.RefreshLocations()
     SecureDisenchant.ApplyCurrent()
     if MainWindow.frame and MainWindow.frame:IsShown() then
         MainWindow:Refresh()

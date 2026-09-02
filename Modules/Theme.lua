@@ -169,7 +169,7 @@ function Theme.CreateButton(parent, width, height, text, variant, frameName, ext
         Theme.UpdateButtonColors(self)
     end)
     local function placeLabel(self, extraY)
-        if not self.Label then
+        if self.skipPlaceLabel or not self.Label then
             return
         end
         self.Label:ClearAllPoints()
@@ -295,6 +295,101 @@ function Theme.CreateCheckbox(parent, width, text)
     return checkbox
 end
 
+function Theme.CreateSearchBox(parent, width, height, placeholderText)
+    height = height or 32
+    local accent = Theme.colors.accent
+    local borderIdle = { accent[1], accent[2], accent[3], 0.4 }
+    local wrap = Theme.CreatePanel(parent, Theme.colors.input, borderIdle)
+    wrap:SetSize(width or 200, height)
+    wrap:EnableMouse(true)
+
+    local editBox = CreateFrame("EditBox", nil, wrap)
+    editBox:SetAutoFocus(false)
+    editBox:SetFontObject(GameFontHighlight)
+    editBox:SetTextColor(Theme.UnpackColor(Theme.colors.text))
+    editBox:SetTextInsets(0, 0, 0, 0)
+    editBox:SetMaxLetters(80)
+    editBox:SetPoint("TOPLEFT", wrap, "TOPLEFT", 10, 0)
+    editBox:SetPoint("BOTTOMRIGHT", wrap, "BOTTOMRIGHT", -36, 0)
+
+    local placeholder = Theme.CreateText(wrap, placeholderText or SEARCH or "Search", "label")
+    placeholder:SetPoint("LEFT", wrap, "LEFT", 10, 0)
+    placeholder:SetPoint("RIGHT", wrap, "RIGHT", -36, 0)
+    placeholder:SetWordWrap(false)
+    if placeholder.SetMaxLines then
+        placeholder:SetMaxLines(1)
+    end
+
+    local clear = Theme.CreateButton(wrap, 24, 24, "X", "secondary")
+    clear:SetPoint("RIGHT", wrap, "RIGHT", -4, 0)
+    clear.labelOffsetX = 1
+    clear.labelOffsetY = 1
+    clear.Label:ClearAllPoints()
+    clear.Label:SetPoint("CENTER", 1, 1)
+    clear:Hide()
+
+    local function refreshChrome()
+        local focused = editBox:HasFocus()
+        local text = editBox:GetText() or ""
+        local hasText = text ~= ""
+        local border = focused and Theme.colors.accentAlt or borderIdle
+        Theme.ApplySurface(wrap, Theme.colors.input, border)
+        placeholder:SetShown(not hasText and not focused)
+        clear:SetShown(hasText)
+    end
+
+    wrap.EditBox = editBox
+
+    function wrap:GetText()
+        return self.EditBox:GetText() or ""
+    end
+
+    function wrap:SetText(value)
+        self.EditBox:SetText(value or "")
+        refreshChrome()
+    end
+
+    function wrap:SetOnTextChanged(callback)
+        self.onTextChanged = callback
+    end
+
+    function wrap:SetOnFocusGained(callback)
+        self.onFocusGained = callback
+    end
+
+    wrap:SetScript("OnMouseDown", function()
+        editBox:SetFocus()
+    end)
+
+    editBox:SetScript("OnEditFocusGained", function()
+        refreshChrome()
+        if wrap.onFocusGained then
+            wrap.onFocusGained()
+        end
+    end)
+    editBox:SetScript("OnEditFocusLost", refreshChrome)
+    editBox:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+    end)
+    editBox:SetScript("OnEnterPressed", function(self)
+        self:ClearFocus()
+    end)
+    editBox:SetScript("OnTextChanged", function()
+        refreshChrome()
+        if wrap.onTextChanged then
+            wrap.onTextChanged(wrap:GetText())
+        end
+    end)
+
+    clear:SetScript("OnClick", function()
+        editBox:SetText("")
+        editBox:ClearFocus()
+    end)
+
+    refreshChrome()
+    return wrap
+end
+
 function Theme.CreateItemIcon(parent, size)
     size = size or 40
     local wrap = Theme.CreatePanel(parent, { 0.02, 0.02, 0.02, 1 }, Theme.colors.border)
@@ -334,6 +429,26 @@ function Theme.CreateItemIcon(parent, size)
             self.QualityOverlay:Show()
         else
             self.QualityOverlay:Hide()
+        end
+    end
+
+    function wrap:SetUseGlow(shown)
+        shown = shown == true
+        if self.useGlowShown == shown then
+            return
+        end
+        self.useGlowShown = shown
+        local LCG = LibStub("LibCustomGlow-1.0", true)
+        if not LCG then
+            return
+        end
+        -- Glow on the chip, not this BackdropTemplate wrap: the quality
+        -- edge paints above child frames of the wrap.
+        local target = self:GetParent() or self
+        if shown then
+            LCG.PixelGlow_Start(target, nil, 6, 0.25, 6, 2, 0, 0, false, "use")
+        else
+            LCG.PixelGlow_Stop(target, "use")
         end
     end
 

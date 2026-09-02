@@ -35,7 +35,7 @@ addon.Changelog["1.1"] = {
             "La liste d'ignore est enregistrée par personnage au lieu d'être partagée sur le compte.",
         },
     },
-    improvment = {
+    improvement = {
         enUS = {
             "A ghost tile follows the cursor while dragging.",
         },
