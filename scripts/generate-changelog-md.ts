@@ -4,12 +4,12 @@ const baseDir = "Modules/Changelog";
 const changelogPath = "CHANGELOG.md";
 const repoUrl = "https://github.com/ZelionGG/Disenchantum";
 
-const categoryOrder = ["important", "new", "improvment", "bugfix"] as const;
+const categoryOrder = ["important", "new", "improvement", "bugfix"] as const;
 
 const prefixMap: Record<(typeof categoryOrder)[number], string> = {
   important: "- 🔥 _**IMPORTANT** -_",
   new: "- 🆕 _**NEW** -_",
-  improvment: "- 🛠️ _**IMPROVEMENT** -_",
+  improvement: "- 🛠️ _**IMPROVEMENT** -_",
   bugfix: "- 🐞 _**BUGFIX** -_",
 };
 
@@ -119,7 +119,7 @@ function parseLuaChangelog(filePath: string): ParsedChangelog {
       continue;
     }
 
-    const categoryMatch = line.match(/^\s*(important|new|improvment|bugfix)\s*=\s*\{/);
+    const categoryMatch = line.match(/^\s*(important|new|improvement|bugfix)\s*=\s*\{/);
     if (categoryMatch) {
       currentCategory = categoryMatch[1] as CategoryName;
       inEnUs = false;

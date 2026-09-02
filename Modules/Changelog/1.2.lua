@@ -31,7 +31,7 @@ addon.Changelog["1.2"] = {
         enUS = {},
         frFR = {},
     },
-    improvment = {
+    improvement = {
         enUS = {},
         frFR = {},
     },
