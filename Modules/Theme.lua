@@ -383,7 +383,7 @@ function Theme.CreateSearchBox(parent, width, height, placeholderText)
 
     clear:SetScript("OnClick", function()
         editBox:SetText("")
-        editBox:SetFocus()
+        editBox:ClearFocus()
     end)
 
     refreshChrome()
