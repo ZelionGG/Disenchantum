@@ -9,12 +9,13 @@ local L
 local WINDOW_WIDTH = 1100
 local WINDOW_HEIGHT = 780
 local SIDEBAR_WIDTH = 340
-local BAG_ROW_SPACING = 64
+local BAG_ROW_SPACING = 56
 local BAG_HEADER_HEIGHT = 28
 local BAG_HEADER_SPACING = 32
-local QUEUE_ROW_SPACING = 64
+local QUEUE_ROW_SPACING = 56
 local LIST_TOP_PADDING = 10
-local ITEM_ICON_SIZE = 40
+local ITEM_ICON_SIZE = 32
+local ITEM_ROW_HEIGHT = 48
 local BAG_CRAFTED_ICON_SIZE = 16
 local QUEUE_CRAFTED_ICON_SIZE = 24
 local BAG_CRAFTED_ICON_GAP = 4
@@ -738,7 +739,7 @@ end
 
 function MainWindow:CreateBagRow()
     local row = CreateFrame("Button", nil, self.bagListContent, "BackdropTemplate")
-    row:SetHeight(56)
+    row:SetHeight(ITEM_ROW_HEIGHT)
     row.variant = "subtle"
     row.isHovered = false
     Theme.UpdateButtonColors(row)
@@ -1315,7 +1316,7 @@ function MainWindow:EnsureDragGhost()
         return self.dragGhost
     end
 
-    local ghost = Theme.CreateCard(UIParent, 220, 56)
+    local ghost = Theme.CreateCard(UIParent, 220, ITEM_ROW_HEIGHT)
     ghost:SetFrameStrata("TOOLTIP")
     ghost:EnableMouse(false)
     ghost:SetAlpha(0.88)
@@ -1478,7 +1479,7 @@ function MainWindow:EndQueueDrag()
 end
 
 function MainWindow:CreateQueueRow(index)
-    local row = Theme.CreateCard(self.queueContent, nil, 56)
+    local row = Theme.CreateCard(self.queueContent, nil, ITEM_ROW_HEIGHT)
     row:SetPoint("TOPLEFT", self.queueContent, "TOPLEFT", 0, -((index - 1) * QUEUE_ROW_SPACING + LIST_TOP_PADDING))
     row:SetPoint("TOPRIGHT", self.queueContent, "TOPRIGHT", 0, -((index - 1) * QUEUE_ROW_SPACING + LIST_TOP_PADDING))
     row:EnableMouse(true)
