@@ -4,9 +4,12 @@
 
 [Full Changelog](https://github.com/ZelionGG/Disenchantum/compare/1.1...1.2) [Previous Releases](https://github.com/ZelionGG/Disenchantum/releases)
 
-> **Version 1.2 - Use knowledge items from the session recap**
+> **Version 1.2 - Recap knowledge, bag search, and crafted filter**
 >
-> Click profession knowledge reagents in the session recap to get their knowledge points directly.
+> Use profession knowledge from the session recap, search in the list by name or expansion, and crafted gear can now be excluded from the list.
 
 - 🆕 _**NEW** -_ Click a session recap chip that has a Use effect (such as profession knowledge) to use without searching in your bags.
 - 🆕 _**NEW** -_ Click the session recap +N chip to open the rest of the session recap.
+- 🆕 _**NEW** -_ Search Bags by name, item level, slot, bind, or expansion.
+- 🆕 _**NEW** -_ Exclude crafted gear from the list with a **Crafted** filter.
+- 🛠️ _**IMPROVEMENT** -_ The **Disenchant** button keeps icon and name centered so a click no longer jumps the label.
