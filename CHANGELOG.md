@@ -13,3 +13,4 @@
 - 🆕 _**NEW** -_ Search Bags by name, item level, slot, bind, or expansion.
 - 🆕 _**NEW** -_ Exclude crafted gear from the list with a **Crafted** filter.
 - 🛠️ _**IMPROVEMENT** -_ The **Disenchant** button keeps icon and name centered so a click no longer jumps the label.
+- 🛠️ _**IMPROVEMENT** -_ Item tiles are more compact so more items fit in each list.
