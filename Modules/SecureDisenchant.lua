@@ -295,16 +295,51 @@ function SecureDisenchant.EnsureButton(parent)
         button:SetAttribute("useOnKeyDown", false)
     end
 
-    button.Icon = button:CreateTexture(nil, "ARTWORK")
+    button.skipPlaceLabel = true
+
+    local content = CreateFrame("Frame", nil, button)
+    content:SetHeight(28)
+    content:EnableMouse(false)
+    button.Content = content
+
+    button.Icon = content:CreateTexture(nil, "ARTWORK")
     button.Icon:SetSize(28, 28)
-    button.Icon:SetPoint("LEFT", button, "LEFT", 10, 0)
+    button.Icon:SetPoint("LEFT", content, "LEFT", 0, 0)
     button.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     button.Icon:SetTexture(Eligibility.GetSpellTexture())
 
+    button.Label:SetParent(content)
     button.Label:ClearAllPoints()
     button.Label:SetPoint("LEFT", button.Icon, "RIGHT", 10, 0)
-    button.Label:SetPoint("RIGHT", button, "RIGHT", -12, 0)
     button.Label:SetJustifyH("LEFT")
+
+    local function layoutContent()
+        local textWidth = 0
+        if button.Label.GetStringWidth then
+            textWidth = button.Label:GetStringWidth() or 0
+        end
+        content:SetWidth(28 + 10 + textWidth)
+        content:ClearAllPoints()
+        content:SetPoint("CENTER", button, "CENTER", 0, button.contentPressOffset or 0)
+    end
+    button.LayoutContent = layoutContent
+
+    local setText = button.SetText
+    function button:SetText(value)
+        setText(self, value)
+        layoutContent()
+    end
+
+    button:HookScript("OnMouseDown", function(self)
+        self.contentPressOffset = -1
+        layoutContent()
+    end)
+    button:HookScript("OnMouseUp", function(self)
+        self.contentPressOffset = 0
+        layoutContent()
+    end)
+
+    layoutContent()
 
     button.cooldownFill = button:CreateTexture(nil, "ARTWORK")
     button.cooldownFill:SetDrawLayer("ARTWORK", -1)

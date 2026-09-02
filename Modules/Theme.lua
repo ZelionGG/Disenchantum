@@ -169,7 +169,7 @@ function Theme.CreateButton(parent, width, height, text, variant, frameName, ext
         Theme.UpdateButtonColors(self)
     end)
     local function placeLabel(self, extraY)
-        if not self.Label then
+        if self.skipPlaceLabel or not self.Label then
             return
         end
         self.Label:ClearAllPoints()
