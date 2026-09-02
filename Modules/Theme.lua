@@ -337,6 +337,26 @@ function Theme.CreateItemIcon(parent, size)
         end
     end
 
+    function wrap:SetUseGlow(shown)
+        shown = shown == true
+        if self.useGlowShown == shown then
+            return
+        end
+        self.useGlowShown = shown
+        local LCG = LibStub("LibCustomGlow-1.0", true)
+        if not LCG then
+            return
+        end
+        -- Glow on the chip, not this BackdropTemplate wrap: the quality
+        -- edge paints above child frames of the wrap.
+        local target = self:GetParent() or self
+        if shown then
+            LCG.PixelGlow_Start(target, nil, 6, 0.25, 6, 2, 0, 0, false, "use")
+        else
+            LCG.PixelGlow_Stop(target, "use")
+        end
+    end
+
     return wrap
 end
 

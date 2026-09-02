@@ -8,6 +8,7 @@
 ## Notes-frFR: Mettez des objets de sac en file et désenchantez-les d'un clic sécurisé par objet.
 
 ## SavedVariables: DisenchantumDB
+## OptionalDeps: Masque
 
 ## Category-enUS: Professions
 ## Category-frFR: Métiers

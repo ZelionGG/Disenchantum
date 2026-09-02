@@ -112,6 +112,9 @@ local function applySessionChipUse(chip, itemID)
     if chip.IconWrap and chip.IconWrap.Texture then
         chip.IconWrap.Texture:SetDesaturated(hasUse and count <= 0)
     end
+    if chip.IconWrap and chip.IconWrap.SetUseGlow then
+        chip.IconWrap:SetUseGlow(canUse)
+    end
 end
 
 local function pinUsableReagents(reagents)
@@ -395,7 +398,11 @@ function MainWindow:RefreshSession()
     local countWidth = math.max(72, (self.sessionCount:GetStringWidth() or 72) + 4)
     self.sessionCountHit:SetSize(countWidth, 22)
 
-    local reagents = pinUsableReagents((session and session.GetReagents and session.GetReagents()) or {})
+    local reagents = (session and session.GetReagents and session.GetReagents()) or {}
+    if addon.TestMode then
+        reagents = addon.TestMode.MergeReagents(reagents)
+    end
+    reagents = pinUsableReagents(reagents)
     local hasReagents = #reagents > 0
     self.sessionEmpty:SetShown(itemCount == 0 and not hasReagents)
     self.sessionChips:SetShown(hasReagents)
@@ -2218,6 +2225,10 @@ function MainWindow:Initialize()
 
     addon.Changelog.headerButton = self.changelogButton
     addon.Changelog.EnsureFrame(frame)
+
+    if addon.TestMode then
+        addon.TestMode.Attach(self)
+    end
 
     self:ApplyWindowScale()
 end
