@@ -346,7 +346,7 @@ end
 
 function MainWindow.CollectSnapshot()
     return Eligibility.CollectSnapshot({
-        skipGuids = Queue.GetSkipGuids(),
+        skipGuids = Queue.FillSkipGuids(),
         countSkipGuids = Queue.consumedGuids,
     })
 end
@@ -508,6 +508,22 @@ function MainWindow:RefreshSession()
     local countWidth = math.max(72, (self.sessionCount:GetStringWidth() or 72) + 4)
     self.sessionCountHit:SetSize(countWidth, 22)
 
+    local fingerprint = tostring(itemCount)
+    if session and session.reagents then
+        local bits = {}
+        for itemID, entry in pairs(session.reagents) do
+            bits[#bits + 1] = tostring(itemID) .. ":" .. tostring(entry.count or 0)
+        end
+        table.sort(bits)
+        if #bits > 0 then
+            fingerprint = fingerprint .. ";" .. table.concat(bits, ";")
+        end
+    end
+    if fingerprint == self.sessionFingerprint then
+        return
+    end
+    self.sessionFingerprint = fingerprint
+
     local reagents = (session and session.GetReagents and session.GetReagents()) or {}
     reagents = pinUsableReagents(reagents)
     local hasReagents = #reagents > 0
@@ -583,9 +599,16 @@ function MainWindow:RefreshQueueCount(snapshot)
         return
     end
 
-    snapshot = snapshot or MainWindow.CollectSnapshot()
+    L = L or addon.L
     local queued = Queue.Count()
-    self.queueCount:SetText((L["FMT_QUEUE_COUNT"]):format(queued, queued + #snapshot.items))
+    local bagCount
+    if snapshot then
+        bagCount = #snapshot.items
+        self.lastBagItemCount = bagCount
+    else
+        bagCount = self.lastBagItemCount or 0
+    end
+    self.queueCount:SetText((L["FMT_QUEUE_COUNT"]):format(queued, queued + bagCount))
 end
 
 function MainWindow:CloseBagMenus()
@@ -820,6 +843,7 @@ function MainWindow:CreateBagRow()
             startX = cursorX,
             startY = cursorY,
         }
+        MainWindow:StartDragWatcher()
     end)
     row:SetScript("OnMouseUp", function(selfRow, button)
         MainWindow.bagPressState = nil
@@ -831,6 +855,7 @@ function MainWindow:CreateBagRow()
             MainWindow:EndBagDrag()
             return
         end
+        MainWindow:StopDragWatcher()
         if button ~= "LeftButton" then
             return
         end
@@ -842,32 +867,6 @@ function MainWindow:CreateBagRow()
             return
         end
         selfRow.lastClickTime = now
-    end)
-    row:SetScript("OnUpdate", function(selfRow)
-        local press = MainWindow.bagPressState
-        if press and press.row == selfRow and not MainWindow.bagDragState then
-            local cursorX, cursorY = GetCursorPosition()
-            local deltaX = cursorX - press.startX
-            local deltaY = cursorY - press.startY
-            if (deltaX * deltaX + deltaY * deltaY) >= (QUEUE_DRAG_THRESHOLD * QUEUE_DRAG_THRESHOLD) then
-                MainWindow:BeginBagDrag(selfRow)
-            end
-        end
-        if MainWindow.queueDragState then
-            if not IsMouseButtonDown("LeftButton") then
-                MainWindow:EndQueueDrag()
-                return
-            end
-            MainWindow:UpdateQueueDragFromCursor()
-            return
-        end
-        if MainWindow.bagDragState then
-            if not IsMouseButtonDown("LeftButton") then
-                MainWindow:EndBagDrag()
-                return
-            end
-            MainWindow:UpdateQueueDragFromCursor()
-        end
     end)
     row:SetScript("OnReceiveDrag", function()
         enqueueCursorItem()
@@ -1191,6 +1190,62 @@ function MainWindow:RefreshQueueDragHighlights()
     self:UpdateBlacklistDropHighlight()
 end
 
+function MainWindow:IsDragWatcherBusy()
+    return self.bagPressState or self.queuePressState or self.bagDragState or self.queueDragState
+end
+
+function MainWindow:StartDragWatcher()
+    if self.dragWatcher then
+        self.dragWatcher:Show()
+    end
+end
+
+function MainWindow:StopDragWatcher()
+    if self:IsDragWatcherBusy() or not self.dragWatcher then
+        return
+    end
+    self.dragWatcher:Hide()
+end
+
+function MainWindow:UpdateDragWatcher()
+    if not IsMouseButtonDown("LeftButton") then
+        if self.bagDragState then
+            self:EndBagDrag()
+        elseif self.queueDragState then
+            self:EndQueueDrag()
+        else
+            self.bagPressState = nil
+            self.queuePressState = nil
+            self:StopDragWatcher()
+        end
+        return
+    end
+
+    local bagPress = self.bagPressState
+    if bagPress and bagPress.row and not self.bagDragState then
+        local cursorX, cursorY = GetCursorPosition()
+        local deltaX = cursorX - bagPress.startX
+        local deltaY = cursorY - bagPress.startY
+        if (deltaX * deltaX + deltaY * deltaY) >= (QUEUE_DRAG_THRESHOLD * QUEUE_DRAG_THRESHOLD) then
+            self:BeginBagDrag(bagPress.row)
+        end
+    end
+
+    local queuePress = self.queuePressState
+    if queuePress and queuePress.row and not self.queueDragState then
+        local cursorX, cursorY = GetCursorPosition()
+        local deltaX = cursorX - queuePress.startX
+        local deltaY = cursorY - queuePress.startY
+        if (deltaX * deltaX + deltaY * deltaY) >= (QUEUE_DRAG_THRESHOLD * QUEUE_DRAG_THRESHOLD) then
+            self:BeginQueueDrag(queuePress.row)
+        end
+    end
+
+    if self.bagDragState or self.queueDragState then
+        self:UpdateQueueDragFromCursor()
+    end
+end
+
 function MainWindow:BeginQueueDrag(row)
     if not row or not row.queueIndex then
         return
@@ -1409,6 +1464,7 @@ function MainWindow:EndBagDrag()
     local dragState = self.bagDragState
     self.bagPressState = nil
     if not dragState then
+        self:StopDragWatcher()
         return
     end
 
@@ -1419,17 +1475,20 @@ function MainWindow:EndBagDrag()
         self.skipBlacklistClick = true
         Queue.RequestBlacklist(dragState)
         self:RefreshQueueDragHighlights()
+        self:StopDragWatcher()
         return
     end
 
     local overQueue = self:IsCursorOverQueue()
     self:RefreshQueueDragHighlights()
     if not overQueue or not dragState.bag or not dragState.slot then
+        self:StopDragWatcher()
         return
     end
 
     local ok, reason = Queue.AddFromBag(dragState.bag, dragState.slot)
     if not ok or reason == "pending" then
+        self:StopDragWatcher()
         return
     end
 
@@ -1438,11 +1497,13 @@ function MainWindow:EndBagDrag()
     if insertIndex >= 1 and insertIndex < count then
         Queue.Move(count, insertIndex)
     end
+    self:StopDragWatcher()
 end
 
 function MainWindow:EndQueueDrag()
     local dragState = self.queueDragState
     if not dragState then
+        self:StopDragWatcher()
         return
     end
 
@@ -1454,18 +1515,21 @@ function MainWindow:EndQueueDrag()
         self.skipBlacklistClick = true
         Queue.RequestBlacklist(dragState)
         self:RefreshQueueDragHighlights()
+        self:StopDragWatcher()
         return
     end
 
     if self:IsCursorOverBags() then
         Queue.RemoveAt(dragState.sourceIndex)
         self:RefreshQueueDragHighlights()
+        self:StopDragWatcher()
         return
     end
 
     local insertIndex = dragState.insertIndex or dragState.sourceIndex
     if insertIndex == dragState.sourceIndex or insertIndex == dragState.sourceIndex + 1 then
         self:RefreshQueueDragHighlights()
+        self:StopDragWatcher()
         return
     end
 
@@ -1476,6 +1540,7 @@ function MainWindow:EndQueueDrag()
 
     Queue.Move(dragState.sourceIndex, math.max(1, math.min(targetIndex, Queue.Count())))
     self:RefreshQueueDragHighlights()
+    self:StopDragWatcher()
 end
 
 function MainWindow:CreateQueueRow(index)
@@ -1538,6 +1603,7 @@ function MainWindow:CreateQueueRow(index)
             startX = cursorX,
             startY = cursorY,
         }
+        MainWindow:StartDragWatcher()
     end)
     row:SetScript("OnMouseUp", function(selfRow)
         MainWindow.queuePressState = nil
@@ -1550,6 +1616,7 @@ function MainWindow:CreateQueueRow(index)
             MainWindow:EndQueueDrag()
             return
         end
+        MainWindow:StopDragWatcher()
 
         local now = GetTime()
         if selfRow.lastClickTime and (now - selfRow.lastClickTime) < QUEUE_DOUBLE_CLICK and selfRow.queueIndex then
@@ -1558,28 +1625,6 @@ function MainWindow:CreateQueueRow(index)
             return
         end
         selfRow.lastClickTime = now
-    end)
-    row:SetScript("OnUpdate", function(selfRow)
-        local press = MainWindow.queuePressState
-        if press and press.row == selfRow and not MainWindow.queueDragState then
-            local cursorX, cursorY = GetCursorPosition()
-            local deltaX = cursorX - press.startX
-            local deltaY = cursorY - press.startY
-            if (deltaX * deltaX + deltaY * deltaY) >= (QUEUE_DRAG_THRESHOLD * QUEUE_DRAG_THRESHOLD) then
-                MainWindow:BeginQueueDrag(selfRow)
-            end
-        end
-        if MainWindow.queueDragState then
-            if not IsMouseButtonDown("LeftButton") then
-                MainWindow:EndQueueDrag()
-                return
-            end
-            MainWindow:UpdateQueueDragFromCursor()
-            return
-        end
-        if MainWindow.bagDragState then
-            MainWindow:UpdateQueueDragFromCursor()
-        end
     end)
     row:SetScript("OnReceiveDrag", function()
         enqueueCursorItem()
@@ -1788,6 +1833,15 @@ function MainWindow:Initialize()
         MainWindow:Refresh()
     end)
     frame:SetScript("OnHide", function()
+        MainWindow.bagPressState = nil
+        MainWindow.queuePressState = nil
+        MainWindow.bagDragState = nil
+        MainWindow.queueDragState = nil
+        MainWindow:HideDragGhost()
+        if MainWindow.dragWatcher then
+            MainWindow.dragWatcher:Hide()
+        end
+        MainWindow:RefreshQueueDragHighlights()
         MainWindow:CloseBagMenus()
         if addon.Changelog then
             addon.Changelog.Hide()
@@ -1797,6 +1851,12 @@ function MainWindow:Initialize()
         enqueueCursorItem()
     end)
     frame:Hide()
+
+    self.dragWatcher = CreateFrame("Frame", nil, frame)
+    self.dragWatcher:Hide()
+    self.dragWatcher:SetScript("OnUpdate", function()
+        MainWindow:UpdateDragWatcher()
+    end)
 
     local header = Theme.CreatePanel(frame, Theme.colors.titleBar, Theme.colors.border)
     header:SetPoint("TOPLEFT", frame, "TOPLEFT", 1, -1)
@@ -1987,19 +2047,6 @@ function MainWindow:Initialize()
             MainWindow:EndQueueDrag()
         end
     end)
-    self.blacklistButton:SetScript("OnUpdate", function()
-        if MainWindow.bagDragState or MainWindow.queueDragState then
-            if not IsMouseButtonDown("LeftButton") then
-                if MainWindow.bagDragState then
-                    MainWindow:EndBagDrag()
-                else
-                    MainWindow:EndQueueDrag()
-                end
-                return
-            end
-            MainWindow:UpdateQueueDragFromCursor()
-        end
-    end)
 
     self.bagScrollCard = Theme.CreatePanel(self.sidebar, Theme.colors.cardInset, Theme.colors.borderMuted)
     self.bagScrollCard:SetPoint("TOPLEFT", self.sidebar, "TOPLEFT", 16, -152)
@@ -2008,15 +2055,6 @@ function MainWindow:Initialize()
     self.bagScrollCard:SetScript("OnMouseUp", function()
         if self.queueDragState then
             self:EndQueueDrag()
-        end
-    end)
-    self.bagScrollCard:SetScript("OnUpdate", function()
-        if self.queueDragState then
-            if not IsMouseButtonDown("LeftButton") then
-                self:EndQueueDrag()
-                return
-            end
-            self:UpdateQueueDragFromCursor()
         end
     end)
 
@@ -2136,19 +2174,6 @@ function MainWindow:Initialize()
             return
         end
         self:EndQueueDrag()
-    end)
-    self.queueScrollCard:SetScript("OnUpdate", function()
-        if self.bagDragState then
-            if not IsMouseButtonDown("LeftButton") then
-                self:EndBagDrag()
-                return
-            end
-            self:UpdateQueueDragFromCursor()
-            return
-        end
-        if self.queueDragState then
-            self:UpdateQueueDragFromCursor()
-        end
     end)
     self.queueScrollCard:SetScript("OnReceiveDrag", function()
         enqueueCursorItem()

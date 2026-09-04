@@ -84,19 +84,34 @@ local professionHooksRegistered = false
 
 local function refreshRuntime()
     SecureDisenchant.ApplyCurrent()
+    if SecureDisenchant.pendingLoot then
+        SecureDisenchant.pendingUiRefresh = true
+        return
+    end
     if MainWindow.frame and MainWindow.frame:IsShown() then
         MainWindow:Refresh()
     end
 end
 
 local function scheduleItemInfoRefresh()
-    if pendingItemInfoRefresh or not MainWindow.frame or not MainWindow.frame:IsShown() then
+    if not MainWindow.frame or not MainWindow.frame:IsShown() then
+        return
+    end
+    if SecureDisenchant.pendingLoot then
+        SecureDisenchant.pendingUiRefresh = true
+        return
+    end
+    if pendingItemInfoRefresh then
         return
     end
 
     pendingItemInfoRefresh = true
     C_Timer.After(0.25, function()
         pendingItemInfoRefresh = false
+        if SecureDisenchant.pendingLoot then
+            SecureDisenchant.pendingUiRefresh = true
+            return
+        end
         if MainWindow.frame and MainWindow.frame:IsShown() then
             MainWindow:Refresh()
         end

@@ -17,6 +17,8 @@ local SecureDisenchant = {
     allowGcdFill = false,
     pendingLoot = false,
     pendingLootUntil = 0,
+    lootTaken = false,
+    pendingUiRefresh = false,
 }
 
 addon.SecureDisenchant = SecureDisenchant
@@ -61,12 +63,14 @@ function Session.Reset()
     end
 end
 
+local reagentsList = {}
+
 function Session.GetReagents()
-    local list = {}
+    wipe(reagentsList)
     for _, entry in pairs(Session.reagents) do
-        list[#list + 1] = entry
+        reagentsList[#reagentsList + 1] = entry
     end
-    table.sort(list, function(left, right)
+    table.sort(reagentsList, function(left, right)
         if left.count ~= right.count then
             return left.count > right.count
         end
@@ -77,7 +81,7 @@ function Session.GetReagents()
         end
         return leftName < rightName
     end)
-    return list
+    return reagentsList
 end
 
 function Session.RecordLootWindow()
@@ -460,6 +464,7 @@ function SecureDisenchant.OnCastSucceeded(spellID)
     SecureDisenchant.allowGcdFill = true
     SecureDisenchant.pendingLoot = true
     SecureDisenchant.pendingLootUntil = GetTime() + LOOT_PENDING_SECONDS
+    SecureDisenchant.lootTaken = false
     Session.lootRecorded = false
     Session.itemsDisenchanted = Session.itemsDisenchanted + 1
     if addon.MainWindow and addon.MainWindow.RefreshSession then
@@ -474,13 +479,33 @@ function SecureDisenchant.OnCastSucceeded(spellID)
     end
 end
 
+local function flushPendingUiRefresh()
+    if not SecureDisenchant.pendingUiRefresh then
+        return
+    end
+
+    SecureDisenchant.pendingUiRefresh = false
+    local window = addon.MainWindow
+    if window and window.frame and window.frame:IsShown() and window.Refresh then
+        window:Refresh()
+    end
+end
+
+local function clearPendingLoot()
+    SecureDisenchant.pendingLoot = false
+    SecureDisenchant.pendingLootUntil = 0
+    SecureDisenchant.lootTaken = false
+    Session.lootRecorded = false
+    flushPendingUiRefresh()
+end
+
 function SecureDisenchant.TryLoot()
     if not SecureDisenchant.pendingLoot then
         return
     end
 
     if GetTime() > (SecureDisenchant.pendingLootUntil or 0) then
-        SecureDisenchant.pendingLoot = false
+        clearPendingLoot()
         return
     end
 
@@ -490,16 +515,23 @@ function SecureDisenchant.TryLoot()
         return
     end
 
+    if SecureDisenchant.lootTaken then
+        return
+    end
+
     local slotCount = GetNumLootItems and GetNumLootItems() or 0
+    if slotCount <= 0 then
+        return
+    end
+
     for slotIndex = 1, slotCount do
         LootSlot(slotIndex)
     end
+    SecureDisenchant.lootTaken = true
 end
 
 function SecureDisenchant.OnLootClosed()
-    SecureDisenchant.pendingLoot = false
-    SecureDisenchant.pendingLootUntil = 0
-    Session.lootRecorded = false
+    clearPendingLoot()
 end
 
 function SecureDisenchant.OnLeaveCombat()
@@ -512,7 +544,20 @@ end
 
 Queue.OnChanged(function()
     SecureDisenchant.ApplyCurrent()
-    if addon.MainWindow and addon.MainWindow.frame and addon.MainWindow.frame:IsShown() then
-        addon.MainWindow:Refresh()
+    local window = addon.MainWindow
+    if not window or not window.frame or not window.frame:IsShown() then
+        return
     end
+    if SecureDisenchant.pendingLoot then
+        if window.RefreshQueueList then
+            window:RefreshQueueList()
+        end
+        if window.RefreshQueueCount then
+            window:RefreshQueueCount()
+        end
+        SecureDisenchant.UpdateVisual()
+        SecureDisenchant.pendingUiRefresh = true
+        return
+    end
+    window:Refresh()
 end)
