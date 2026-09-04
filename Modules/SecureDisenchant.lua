@@ -7,6 +7,7 @@ local L
 
 local DISENCHANT_SPELL_ID = addon.DISENCHANT_SPELL_ID
 local BUTTON_NAME = "DisenchantumSecureButton"
+local BINDING_COMMAND = "CLICK " .. BUTTON_NAME .. ":LeftButton"
 -- Only auto-loot the window that opens right after our DE, not world loot.
 local LOOT_PENDING_SECONDS = 2
 
@@ -187,6 +188,62 @@ function SecureDisenchant.UpdateVisual()
     end
 
     button:SetVisualEnabled(canUse)
+    SecureDisenchant.UpdateHotkey()
+end
+
+-- GetBindingText(key, 1) / a truthy 2nd arg abbreviates (a-s-Y). Do not pass "KEY_".
+local BINDING_MODIFIER_LABEL = {
+    ALT = "Alt",
+    LALT = "Left Alt",
+    RALT = "Right Alt",
+    SHIFT = "Shift",
+    LSHIFT = "Left Shift",
+    RSHIFT = "Right Shift",
+    CTRL = "Ctrl",
+    LCTRL = "Left Ctrl",
+    RCTRL = "Right Ctrl",
+}
+
+local function prettyBindingToken(token)
+    local upper = strupper(token)
+    local modifier = BINDING_MODIFIER_LABEL[upper]
+    if modifier then
+        return modifier
+    end
+    local named = _G["KEY_" .. upper]
+    if named and named ~= "" then
+        return named
+    end
+    return token
+end
+
+local function formatBindingLabel(key)
+    local parts = {}
+    for token in string.gmatch(key, "[^-]+") do
+        parts[#parts + 1] = prettyBindingToken(token)
+    end
+    if #parts == 0 then
+        return ""
+    end
+    return "(" .. table.concat(parts, " + ") .. ")"
+end
+
+function SecureDisenchant.UpdateHotkey()
+    local button = getButton()
+    if not button or not button.HotKey then
+        return
+    end
+
+    local key = GetBindingKey(BINDING_COMMAND)
+    local text = key and formatBindingLabel(key) or ""
+    if text == "" then
+        button.HotKey:SetText("")
+        button.HotKey:Hide()
+        return
+    end
+
+    button.HotKey:SetText(text)
+    button.HotKey:Show()
 end
 
 local function hideProgressFill(button)
@@ -312,6 +369,13 @@ function SecureDisenchant.EnsureButton(parent)
     button.Label:ClearAllPoints()
     button.Label:SetPoint("LEFT", button.Icon, "RIGHT", 10, 0)
     button.Label:SetJustifyH("LEFT")
+
+    -- Sibling of Content so the centered icon+label layout does not shift.
+    button.HotKey = Theme.CreateText(button, "", "label")
+    button.HotKey:SetDrawLayer("OVERLAY")
+    button.HotKey:SetJustifyH("RIGHT")
+    button.HotKey:SetPoint("TOPRIGHT", button, "TOPRIGHT", -8, -6)
+    button.HotKey:Hide()
 
     local function layoutContent()
         local textWidth = 0

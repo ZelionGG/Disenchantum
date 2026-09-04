@@ -42,6 +42,7 @@ read_globals = {
     'GameFontNormalLarge',
     'GameFontDisable',
     'GameTooltip',
+    'GetBindingKey',
     'GetClientDisplayExpansionLevel',
     'GetCursorPosition',
     'GetExpansionLevel',

@@ -414,6 +414,11 @@ eventFrame:SetScript("OnEvent", function(_, eventName, unitTarget, _, spellID)
         return
     end
 
+    if eventName == "UPDATE_BINDINGS" then
+        SecureDisenchant.UpdateHotkey()
+        return
+    end
+
     if eventName == "BAG_UPDATE_DELAYED" or eventName == "PLAYER_ENTERING_WORLD" or eventName == "SPELLS_CHANGED" then
         refreshRuntime()
         return
@@ -454,6 +459,7 @@ eventFrame:RegisterEvent("DISPLAY_SIZE_CHANGED")
 eventFrame:RegisterEvent("TRADE_SKILL_LIST_UPDATE")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+eventFrame:RegisterEvent("UPDATE_BINDINGS")
 eventFrame:RegisterEvent("BAG_UPDATE_DELAYED")
 eventFrame:RegisterEvent("SPELLS_CHANGED")
 eventFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
