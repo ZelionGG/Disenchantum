@@ -399,6 +399,9 @@ function SecureDisenchant.EnsureButton(parent)
     end
 
     button:HookScript("OnMouseDown", function(self)
+        if self.visualEnabled == false or (self.IsEnabled and not self:IsEnabled()) then
+            return
+        end
         self.contentPressOffset = -1
         layoutContent()
     end)

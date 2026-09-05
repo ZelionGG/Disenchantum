@@ -177,6 +177,10 @@ function Theme.CreateButton(parent, width, height, text, variant, frameName, ext
     end
 
     button:SetScript("OnMouseDown", function(self)
+        -- Disabled buttons still receive OnMouseDown; skip the press nudge.
+        if self.visualEnabled == false or (self.IsEnabled and not self:IsEnabled()) then
+            return
+        end
         placeLabel(self, -1)
     end)
     button:SetScript("OnMouseUp", function(self)
