@@ -20,7 +20,7 @@ local BAG_CRAFTED_ICON_SIZE = 16
 local QUEUE_CRAFTED_ICON_SIZE = 24
 local BAG_CRAFTED_ICON_GAP = 4
 local BAG_TITLE_RIGHT_INSET = 50
-local BAG_TITLE_CRAFTED_INSET = BAG_TITLE_RIGHT_INSET + BAG_CRAFTED_ICON_SIZE + BAG_CRAFTED_ICON_GAP
+local BLACKLIST_TITLE_RIGHT_INSET = 44
 local SESSION_CHIP_SIZE = 28
 local SESSION_CHIP_GAP = 6
 local SESSION_OVERFLOW_COLS = 6
@@ -300,18 +300,21 @@ local function applyRowItemVisuals(row)
     end
 
     if row.CraftedIcon then
-        local crafted = Eligibility.IsCraftedEquipment(row.itemLink)
-        if row.Delete then
+        local crafted = Eligibility.IsCraftedEquipment(row.itemLink or row.itemID)
+        if row.IndexLabel then
             row.CraftedIcon:SetShown(crafted)
-        elseif crafted then
-            row.Title:SetPoint("RIGHT", row, "RIGHT", -BAG_TITLE_CRAFTED_INSET, 0)
-            local shownWidth = math.min(row.Title:GetStringWidth() or 0, row.Title:GetWidth() or 0)
-            row.CraftedIcon:ClearAllPoints()
-            row.CraftedIcon:SetPoint("LEFT", row.Title, "LEFT", shownWidth + BAG_CRAFTED_ICON_GAP, 0)
-            row.CraftedIcon:Show()
         else
-            row.Title:SetPoint("RIGHT", row, "RIGHT", -BAG_TITLE_RIGHT_INSET, 0)
-            row.CraftedIcon:Hide()
+            local rightInset = row.titleRightInset or BAG_TITLE_RIGHT_INSET
+            if crafted then
+                row.Title:SetPoint("RIGHT", row, "RIGHT", -(rightInset + BAG_CRAFTED_ICON_SIZE + BAG_CRAFTED_ICON_GAP), 0)
+                local shownWidth = math.min(row.Title:GetStringWidth() or 0, row.Title:GetWidth() or 0)
+                row.CraftedIcon:ClearAllPoints()
+                row.CraftedIcon:SetPoint("LEFT", row.Title, "LEFT", shownWidth + BAG_CRAFTED_ICON_GAP, 0)
+                row.CraftedIcon:Show()
+            else
+                row.Title:SetPoint("RIGHT", row, "RIGHT", -rightInset, 0)
+                row.CraftedIcon:Hide()
+            end
         end
     end
 end
@@ -907,17 +910,21 @@ function MainWindow:CreateBlacklistRow()
     row.IconWrap:EnableMouse(false)
 
     row.Title = Theme.CreateText(row, "", "body")
+    row.titleRightInset = BLACKLIST_TITLE_RIGHT_INSET
     row.Title:SetPoint("LEFT", row.IconWrap, "RIGHT", 10, 0)
-    row.Title:SetPoint("RIGHT", row, "RIGHT", -44, 0)
+    row.Title:SetPoint("RIGHT", row, "RIGHT", -BLACKLIST_TITLE_RIGHT_INSET, 0)
     row.Title:SetJustifyH("LEFT")
     row.Title:SetWordWrap(false)
     row.Title:SetMaxLines(1)
+
+    row.CraftedIcon = createCraftedIcon(row, BAG_CRAFTED_ICON_SIZE)
 
     row.Delete = Theme.CreateButton(row, 24, 24, "X", "danger")
     row.Delete:SetPoint("RIGHT", row, "RIGHT", -10, 0)
     row.Delete.labelOffsetX = 1
     row.Delete.labelOffsetY = 1
     row.Delete.Label:SetPoint("CENTER", 1, 1)
+
     row.Delete:SetScript("OnClick", function()
         if row.itemID then
             Queue.BlacklistRemove(row.itemID)
