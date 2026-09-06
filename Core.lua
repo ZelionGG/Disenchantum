@@ -57,11 +57,15 @@ local function registerMinimap()
         OnClick = function()
             MainWindow:Toggle()
         end,
-        OnTooltipShow = function(tooltip)
+        OnEnter = function(frame)
             local r, g, b = Theme.UnpackColor(Theme.colors.accent)
-            tooltip:AddLine(L["ADDON_NAME"], r, g, b)
-            tooltip:AddLine(L["MINIMAP_TOOLTIP"], 0.9, 0.9, 0.9, true)
-            tooltip:AddLine("/de", 0.65, 0.65, 0.65)
+            GameTooltip:SetOwner(frame, "ANCHOR_LEFT")
+            GameTooltip:AddLine(L["ADDON_NAME"], r, g, b)
+            GameTooltip:AddLine(L["MINIMAP_TOOLTIP"], 0.9, 0.9, 0.9, true)
+            GameTooltip:Show()
+        end,
+        OnLeave = function()
+            GameTooltip:Hide()
         end,
     })
 
