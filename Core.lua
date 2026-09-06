@@ -27,6 +27,7 @@ function addon.UpdateMinimapIcon()
 end
 
 function addon.UpdateCompartmentIcon()
+    local LDB = LibStub("LibDataBroker-1.1", true)
     local LDBIcon = LibStub("LibDBIcon-1.0", true)
     if not LDBIcon or not addon.db or not LDBIcon.IsButtonCompartmentAvailable then
         return
@@ -37,6 +38,25 @@ function addon.UpdateCompartmentIcon()
 
     if addon.db.global.minimap.showInCompartment then
         LDBIcon:AddButtonToCompartment(ADDON_NAME)
+        local button = LDBIcon:GetMinimapButton(ADDON_NAME)
+        local data = button and button.compartmentData
+        local dataObject = LDB and LDB:GetDataObjectByName(ADDON_NAME)
+        if data and dataObject then
+            data.text = Theme.GetAddonName()
+            data.funcOnEnter = function(frame)
+                if dataObject.OnEnter then
+                    dataObject.OnEnter(frame)
+                end
+            end
+            data.funcOnLeave = function()
+                if dataObject.OnLeave then
+                    dataObject.OnLeave()
+                end
+            end
+            if AddonCompartmentFrame and AddonCompartmentFrame.UpdateDisplay then
+                AddonCompartmentFrame:UpdateDisplay()
+            end
+        end
     else
         LDBIcon:RemoveButtonFromCompartment(ADDON_NAME)
         addon.db.global.minimap.showInCompartment = false

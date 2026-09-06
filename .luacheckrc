@@ -18,6 +18,7 @@ globals = {
 }
 
 read_globals = {
+    'AddonCompartmentFrame',
     'C_AddOns',
     'C_Container',
     'C_Cursor',
