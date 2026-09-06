@@ -52,15 +52,14 @@ local function registerMinimap()
 
     local dataObject = LDB:NewDataObject(ADDON_NAME, {
         type = "launcher",
-        text = L["ADDON_NAME"],
+        text = Theme.GetAddonName(),
         icon = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Media\\icon.png",
         OnClick = function()
             MainWindow:Toggle()
         end,
         OnEnter = function(frame)
-            local r, g, b = Theme.UnpackColor(Theme.colors.accent)
             GameTooltip:SetOwner(frame, "ANCHOR_LEFT")
-            GameTooltip:AddLine(L["ADDON_NAME"], r, g, b)
+            GameTooltip:AddLine(Theme.GetAddonName())
             GameTooltip:AddLine(L["MINIMAP_TOOLTIP"], 0.9, 0.9, 0.9, true)
             GameTooltip:Show()
         end,
@@ -201,7 +200,7 @@ end
 
 local function applyProfessionTabTextColor(button)
     if button.Text and button.Text.SetTextColor then
-        button.Text:SetTextColor(Theme.UnpackColor(Theme.colors.accentAlt))
+        button.Text:SetTextColor(1, 1, 1, 1)
     end
 end
 
@@ -313,17 +312,17 @@ local function ensureProfessionButton()
     end
     if isElvUILoaded() then
         styleProfessionTabElvUI(professionButton)
-        professionButton:SetText(L["BUTTON_OPEN_DISENCHANTER"])
     else
-        professionButton:SetText(L["BUTTON_OPEN_DISENCHANTER"])
         styleProfessionTabBlizzard(professionButton)
     end
+    professionButton:SetText(Theme.GetOpenAddonLabel())
     sizeProfessionTab(professionButton)
     professionButton:SetFrameLevel((ProfessionsFrame:GetFrameLevel() or 1) + 10)
     professionButton:SetScript("OnClick", function()
         MainWindow:Open()
     end)
     professionButton:SetScript("OnEnter", function(self)
+        applyProfessionTabTextColor(self)
         if self.Text and self.Text.IsTruncated and self.Text:IsTruncated() then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT", -12, -6)
             GameTooltip:SetText(self.Text:GetText() or "", 1, 1, 1)

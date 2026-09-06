@@ -68,6 +68,7 @@ read_globals = {
     'GetNumLootItems',
     'MINIMAP_LABEL',
     'NONE',
+    'NORMAL_FONT_COLOR',
     'NumberFontNormal',
     'OTHER',
     'ProfessionsFrame',

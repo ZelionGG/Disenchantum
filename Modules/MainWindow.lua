@@ -1884,9 +1884,9 @@ function MainWindow:Initialize()
     logo:SetPoint("LEFT", header, "LEFT", 14, 0)
     logo:SetTexture(mediaTexture("icon-small.png"), nil, nil, "LINEAR")
 
-    local title = Theme.CreateText(header, L["ADDON_NAME"], "heading")
+    local title = Theme.CreateText(header, Theme.GetAddonName(), "heading")
     title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 10, 2)
-    Theme.SetFontColor(title, Theme.colors.text)
+    Theme.SetFontColor(title, { 1, 1, 1, 1 })
 
     local subtitle = Theme.CreateText(header, L["WINDOW_SUBTITLE"], "muted")
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
