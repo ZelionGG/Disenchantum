@@ -18,6 +18,7 @@ globals = {
 }
 
 read_globals = {
+    'AddonCompartmentFrame',
     'C_AddOns',
     'C_Container',
     'C_Cursor',
@@ -42,6 +43,7 @@ read_globals = {
     'GameFontNormalLarge',
     'GameFontDisable',
     'GameTooltip',
+    'GetBindingKey',
     'GetClientDisplayExpansionLevel',
     'GetCursorPosition',
     'GetExpansionLevel',
@@ -67,6 +69,7 @@ read_globals = {
     'GetNumLootItems',
     'MINIMAP_LABEL',
     'NONE',
+    'NORMAL_FONT_COLOR',
     'NumberFontNormal',
     'OTHER',
     'ProfessionsFrame',

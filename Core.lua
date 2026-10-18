@@ -27,6 +27,7 @@ function addon.UpdateMinimapIcon()
 end
 
 function addon.UpdateCompartmentIcon()
+    local LDB = LibStub("LibDataBroker-1.1", true)
     local LDBIcon = LibStub("LibDBIcon-1.0", true)
     if not LDBIcon or not addon.db or not LDBIcon.IsButtonCompartmentAvailable then
         return
@@ -37,6 +38,25 @@ function addon.UpdateCompartmentIcon()
 
     if addon.db.global.minimap.showInCompartment then
         LDBIcon:AddButtonToCompartment(ADDON_NAME)
+        local button = LDBIcon:GetMinimapButton(ADDON_NAME)
+        local data = button and button.compartmentData
+        local dataObject = LDB and LDB:GetDataObjectByName(ADDON_NAME)
+        if data and dataObject then
+            data.text = Theme.GetAddonName()
+            data.funcOnEnter = function(frame)
+                if dataObject.OnEnter then
+                    dataObject.OnEnter(frame)
+                end
+            end
+            data.funcOnLeave = function()
+                if dataObject.OnLeave then
+                    dataObject.OnLeave()
+                end
+            end
+            if AddonCompartmentFrame and AddonCompartmentFrame.UpdateDisplay then
+                AddonCompartmentFrame:UpdateDisplay()
+            end
+        end
     else
         LDBIcon:RemoveButtonFromCompartment(ADDON_NAME)
         addon.db.global.minimap.showInCompartment = false
@@ -52,16 +72,19 @@ local function registerMinimap()
 
     local dataObject = LDB:NewDataObject(ADDON_NAME, {
         type = "launcher",
-        text = L["ADDON_NAME"],
+        text = Theme.GetAddonName(),
         icon = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Media\\icon.png",
         OnClick = function()
             MainWindow:Toggle()
         end,
-        OnTooltipShow = function(tooltip)
-            local r, g, b = Theme.UnpackColor(Theme.colors.accent)
-            tooltip:AddLine(L["ADDON_NAME"], r, g, b)
-            tooltip:AddLine(L["MINIMAP_TOOLTIP"], 0.9, 0.9, 0.9, true)
-            tooltip:AddLine("/de", 0.65, 0.65, 0.65)
+        OnEnter = function(frame)
+            GameTooltip:SetOwner(frame, "ANCHOR_LEFT")
+            GameTooltip:AddLine(Theme.GetAddonName())
+            GameTooltip:AddLine(L["MINIMAP_TOOLTIP"], 0.9, 0.9, 0.9, true)
+            GameTooltip:Show()
+        end,
+        OnLeave = function()
+            GameTooltip:Hide()
         end,
     })
 
@@ -84,19 +107,34 @@ local professionHooksRegistered = false
 
 local function refreshRuntime()
     SecureDisenchant.ApplyCurrent()
+    if SecureDisenchant.pendingLoot then
+        SecureDisenchant.pendingUiRefresh = true
+        return
+    end
     if MainWindow.frame and MainWindow.frame:IsShown() then
         MainWindow:Refresh()
     end
 end
 
 local function scheduleItemInfoRefresh()
-    if pendingItemInfoRefresh or not MainWindow.frame or not MainWindow.frame:IsShown() then
+    if not MainWindow.frame or not MainWindow.frame:IsShown() then
+        return
+    end
+    if SecureDisenchant.pendingLoot then
+        SecureDisenchant.pendingUiRefresh = true
+        return
+    end
+    if pendingItemInfoRefresh then
         return
     end
 
     pendingItemInfoRefresh = true
     C_Timer.After(0.25, function()
         pendingItemInfoRefresh = false
+        if SecureDisenchant.pendingLoot then
+            SecureDisenchant.pendingUiRefresh = true
+            return
+        end
         if MainWindow.frame and MainWindow.frame:IsShown() then
             MainWindow:Refresh()
         end
@@ -182,7 +220,7 @@ end
 
 local function applyProfessionTabTextColor(button)
     if button.Text and button.Text.SetTextColor then
-        button.Text:SetTextColor(Theme.UnpackColor(Theme.colors.accentAlt))
+        button.Text:SetTextColor(1, 1, 1, 1)
     end
 end
 
@@ -294,17 +332,17 @@ local function ensureProfessionButton()
     end
     if isElvUILoaded() then
         styleProfessionTabElvUI(professionButton)
-        professionButton:SetText(L["BUTTON_OPEN_DISENCHANTER"])
     else
-        professionButton:SetText(L["BUTTON_OPEN_DISENCHANTER"])
         styleProfessionTabBlizzard(professionButton)
     end
+    professionButton:SetText(Theme.GetOpenAddonLabel())
     sizeProfessionTab(professionButton)
     professionButton:SetFrameLevel((ProfessionsFrame:GetFrameLevel() or 1) + 10)
     professionButton:SetScript("OnClick", function()
         MainWindow:Open()
     end)
     professionButton:SetScript("OnEnter", function(self)
+        applyProfessionTabTextColor(self)
         if self.Text and self.Text.IsTruncated and self.Text:IsTruncated() then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT", -12, -6)
             GameTooltip:SetText(self.Text:GetText() or "", 1, 1, 1)
@@ -414,6 +452,11 @@ eventFrame:SetScript("OnEvent", function(_, eventName, unitTarget, _, spellID)
         return
     end
 
+    if eventName == "UPDATE_BINDINGS" then
+        SecureDisenchant.UpdateHotkey()
+        return
+    end
+
     if eventName == "BAG_UPDATE_DELAYED" or eventName == "PLAYER_ENTERING_WORLD" or eventName == "SPELLS_CHANGED" then
         refreshRuntime()
         return
@@ -454,6 +497,7 @@ eventFrame:RegisterEvent("DISPLAY_SIZE_CHANGED")
 eventFrame:RegisterEvent("TRADE_SKILL_LIST_UPDATE")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+eventFrame:RegisterEvent("UPDATE_BINDINGS")
 eventFrame:RegisterEvent("BAG_UPDATE_DELAYED")
 eventFrame:RegisterEvent("SPELLS_CHANGED")
 eventFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")

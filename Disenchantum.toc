@@ -1,5 +1,5 @@
 ## Interface: 120105
-## Title: Disenchantum
+## Title: |cff61d1e0D|r|cff6acce2i|r|cff73c8e4s|r|cff7dc3e5e|r|cff86bfe7n|r|cff8fbae9c|r|cff99b5eah|r|cffa2b1eca|r|cffabacedn|r|cffb4a7eft|r|cffbea3f1u|r|cffc79ef2m|r
 ## Author: ZelionGG
 ## Version: @project-version@
 ## IconTexture: Interface\AddOns\Disenchantum\Media\icon.png

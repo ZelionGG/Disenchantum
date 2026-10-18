@@ -44,6 +44,73 @@ function Theme.ApplyGradient(texture, orientation, fromColor, toColor)
     )
 end
 
+function Theme.GradientText(text, fromColor, toColor)
+    text = text or ""
+    fromColor = fromColor or Theme.colors.accent
+    toColor = toColor or Theme.colors.accentAlt
+    local len = #text
+    if len == 0 then
+        return text
+    end
+
+    local fromR, fromG, fromB = Theme.UnpackColor(fromColor)
+    local toR, toG, toB = Theme.UnpackColor(toColor)
+    local parts = {}
+    for i = 1, len do
+        local t = (len == 1) and 0 or ((i - 1) / (len - 1))
+        parts[i] = string.format(
+            "|cff%02x%02x%02x%s|r",
+            math.floor((fromR + (toR - fromR) * t) * 255 + 0.5),
+            math.floor((fromG + (toG - fromG) * t) * 255 + 0.5),
+            math.floor((fromB + (toB - fromB) * t) * 255 + 0.5),
+            text:sub(i, i)
+        )
+    end
+    return table.concat(parts)
+end
+
+local addonNameGradient
+
+function Theme.GetAddonName()
+    if not addonNameGradient then
+        local name = addon.L and addon.L["ADDON_NAME"] or "Disenchantum"
+        addonNameGradient = Theme.GradientText(name)
+    end
+    return addonNameGradient
+end
+
+local function wrapColor(text, r, g, b)
+    if not text or text == "" then
+        return ""
+    end
+    return string.format(
+        "|cff%02x%02x%02x%s|r",
+        math.floor(r * 255 + 0.5),
+        math.floor(g * 255 + 0.5),
+        math.floor(b * 255 + 0.5),
+        text
+    )
+end
+
+local openAddonLabel
+
+function Theme.GetOpenAddonLabel()
+    if not openAddonLabel then
+        local open = addon.L and addon.L["BUTTON_OPEN_DISENCHANTER"] or "Open Disenchantum"
+        local name = addon.L and addon.L["ADDON_NAME"] or "Disenchantum"
+        local goldR, goldG, goldB = NORMAL_FONT_COLOR:GetRGB()
+        local startPos, endPos = string.find(open, name, 1, true)
+        if startPos then
+            openAddonLabel = wrapColor(string.sub(open, 1, startPos - 1), goldR, goldG, goldB)
+                .. Theme.GetAddonName()
+                .. wrapColor(string.sub(open, endPos + 1), goldR, goldG, goldB)
+        else
+            openAddonLabel = Theme.GradientText(open)
+        end
+    end
+    return openAddonLabel
+end
+
 function Theme.ApplySurface(frame, background, border)
     frame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
@@ -177,6 +244,10 @@ function Theme.CreateButton(parent, width, height, text, variant, frameName, ext
     end
 
     button:SetScript("OnMouseDown", function(self)
+        -- Disabled buttons still receive OnMouseDown; skip the press nudge.
+        if self.visualEnabled == false or (self.IsEnabled and not self:IsEnabled()) then
+            return
+        end
         placeLabel(self, -1)
     end)
     button:SetScript("OnMouseUp", function(self)

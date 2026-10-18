@@ -252,13 +252,13 @@ local function getExpansionID(bag, slot, itemID)
     return nil
 end
 
-function Eligibility.IsDisenchantCandidate(bag, slot)
+function Eligibility.IsDisenchantCandidate(bag, slot, guid)
     local info = C_Container.GetContainerItemInfo(bag, slot)
     if not info or not info.itemID then
         return false, nil
     end
 
-    local guid = Eligibility.GetItemGUID(bag, slot)
+    guid = guid or Eligibility.GetItemGUID(bag, slot)
     local cached = guid and candidateCache[guid]
     if cached then
         if not cached.ok then
@@ -380,21 +380,85 @@ function Eligibility.IsBlacklisted(itemID)
     return list[itemID] ~= nil or list[tostring(itemID)] ~= nil
 end
 
+local scratchLocation = ItemLocation:CreateEmpty()
+
 function Eligibility.GetItemGUID(bag, slot)
-    local location = ItemLocation:CreateFromBagAndSlot(bag, slot)
-    if not location or not C_Item.DoesItemExist(location) then
+    scratchLocation:SetBagAndSlot(bag, slot)
+    if not C_Item.DoesItemExist(scratchLocation) then
         return nil
     end
-    return C_Item.GetItemGUID(location)
+    return C_Item.GetItemGUID(scratchLocation)
 end
 
-function Eligibility.BuildEntry(bag, slot, info)
+local entryCache = {}
+local locationsScratch = {}
+local locationPool = {}
+local locationPoolUsed = 0
+local snapshotItems = {}
+local qualityCountsScratch = {
+    uncommon = 0,
+    rare = 0,
+    epic = 0,
+}
+local expansionCountsScratch = {}
+local snapshotOut = {
+    items = snapshotItems,
+    qualityCounts = qualityCountsScratch,
+    expansionCounts = expansionCountsScratch,
+    currentExpansionCount = 0,
+    craftedCount = 0,
+    hiddenByFilters = 0,
+}
+
+local function resetLocationsScratch()
+    wipe(locationsScratch)
+    locationPoolUsed = 0
+end
+
+local function putLocation(guid, bag, slot)
+    locationPoolUsed = locationPoolUsed + 1
+    local rec = locationPool[locationPoolUsed]
+    if not rec then
+        rec = { bag = bag, slot = slot }
+        locationPool[locationPoolUsed] = rec
+    else
+        rec.bag = bag
+        rec.slot = slot
+    end
+    locationsScratch[guid] = rec
+end
+
+local function pruneGuidCaches(locations)
+    for guid in pairs(candidateCache) do
+        if not locations[guid] then
+            candidateCache[guid] = nil
+        end
+    end
+    for guid in pairs(entryCache) do
+        if not locations[guid] then
+            entryCache[guid] = nil
+        end
+    end
+end
+
+function Eligibility.BuildEntry(bag, slot, info, guid)
     info = info or C_Container.GetContainerItemInfo(bag, slot)
     if not info then
         return nil
     end
 
-    local location = ItemLocation:CreateFromBagAndSlot(bag, slot)
+    guid = guid or Eligibility.GetItemGUID(bag, slot)
+    if not guid then
+        return nil
+    end
+
+    local cached = entryCache[guid]
+    if cached and cached.bag == bag and cached.slot == slot then
+        return cached
+    end
+
+    scratchLocation:SetBagAndSlot(bag, slot)
+    local location = scratchLocation
     local itemLevel
     if location and C_Item.DoesItemExist(location) and C_Item.GetCurrentItemLevel then
         itemLevel = C_Item.GetCurrentItemLevel(location)
@@ -444,8 +508,8 @@ function Eligibility.BuildEntry(bag, slot, info)
         bindLabel = bindText("BIND_ACCOUNT", "Account")
     end
 
-    return {
-        guid = Eligibility.GetItemGUID(bag, slot),
+    local entry = {
+        guid = guid,
         bag = bag,
         slot = slot,
         itemID = info.itemID,
@@ -459,6 +523,8 @@ function Eligibility.BuildEntry(bag, slot, info)
         bindLabel = bindLabel,
         expansionID = expansionID,
     }
+    entryCache[guid] = entry
+    return entry
 end
 
 function Eligibility.GetBagRange()
@@ -473,26 +539,18 @@ function Eligibility.GetBagRange()
 end
 
 function Eligibility.IndexBagLocations()
-    local locations = {}
+    resetLocationsScratch()
     local firstBag, lastBag = Eligibility.GetBagRange()
     for bag = firstBag, lastBag do
         local numSlots = C_Container.GetContainerNumSlots(bag) or 0
         for slot = 1, numSlots do
             local guid = Eligibility.GetItemGUID(bag, slot)
             if guid then
-                locations[guid] = { bag = bag, slot = slot }
+                putLocation(guid, bag, slot)
             end
         end
     end
-    return locations
-end
-
-local function pruneCandidateCache(locations)
-    for guid in pairs(candidateCache) do
-        if not locations[guid] then
-            candidateCache[guid] = nil
-        end
-    end
+    return locationsScratch
 end
 
 function Eligibility.CollectSnapshot(options)
@@ -501,57 +559,60 @@ function Eligibility.CollectSnapshot(options)
     -- countSkipGuids: still count toward filter totals until the item leaves the bag.
     local skipGuids = options.skipGuids or {}
     local countSkipGuids = options.countSkipGuids or {}
-    local items = {}
-    local qualityCounts = {
-        uncommon = 0,
-        rare = 0,
-        epic = 0,
-    }
-    local expansionCounts = {}
+    wipe(snapshotItems)
+    wipe(expansionCountsScratch)
+    qualityCountsScratch.uncommon = 0
+    qualityCountsScratch.rare = 0
+    qualityCountsScratch.epic = 0
     local currentExpansionCount = 0
     local craftedCount = 0
     local hiddenByFilters = 0
     local currentExpansion = Eligibility.GetCurrentExpansionLevel()
     local firstBag, lastBag = Eligibility.GetBagRange()
 
+    resetLocationsScratch()
     for bag = firstBag, lastBag do
         local numSlots = C_Container.GetContainerNumSlots(bag) or 0
         for slot = 1, numSlots do
-            local ok, info = Eligibility.IsDisenchantCandidate(bag, slot)
-            if ok and info and not Eligibility.IsBlacklisted(info.itemID) then
-                local entry = Eligibility.BuildEntry(bag, slot, info)
-                if entry and entry.guid then
-                    local itemKey = entry.itemLink or entry.itemID
-                    local passesCrafted = Eligibility.MatchesCraftedFilter(itemKey)
-                    if not countSkipGuids[entry.guid] then
-                        local qualityKey = getQualityKey(entry.quality)
-                        if qualityKey and Eligibility.MatchesExpansionFilter(entry.expansionID) and passesCrafted then
-                            qualityCounts[qualityKey] = qualityCounts[qualityKey] + 1
-                        end
-                        if Eligibility.MatchesQualityFilter(entry.quality) and passesCrafted then
-                            if entry.expansionID ~= nil then
-                                expansionCounts[entry.expansionID] = (expansionCounts[entry.expansionID] or 0) + 1
+            local guid = Eligibility.GetItemGUID(bag, slot)
+            if guid then
+                putLocation(guid, bag, slot)
+                local ok, info = Eligibility.IsDisenchantCandidate(bag, slot, guid)
+                if ok and info and not Eligibility.IsBlacklisted(info.itemID) then
+                    local entry = Eligibility.BuildEntry(bag, slot, info, guid)
+                    if entry and entry.guid then
+                        local itemKey = entry.itemLink or entry.itemID
+                        local passesCrafted = Eligibility.MatchesCraftedFilter(itemKey)
+                        if not countSkipGuids[entry.guid] then
+                            local qualityKey = getQualityKey(entry.quality)
+                            if qualityKey and Eligibility.MatchesExpansionFilter(entry.expansionID) and passesCrafted then
+                                qualityCountsScratch[qualityKey] = qualityCountsScratch[qualityKey] + 1
                             end
-                            if entry.expansionID == currentExpansion then
-                                currentExpansionCount = currentExpansionCount + 1
+                            if Eligibility.MatchesQualityFilter(entry.quality) and passesCrafted then
+                                if entry.expansionID ~= nil then
+                                    expansionCountsScratch[entry.expansionID] = (expansionCountsScratch[entry.expansionID] or 0) + 1
+                                end
+                                if entry.expansionID == currentExpansion then
+                                    currentExpansionCount = currentExpansionCount + 1
+                                end
+                            end
+                            if Eligibility.MatchesQualityFilter(entry.quality)
+                                and Eligibility.MatchesExpansionFilter(entry.expansionID)
+                                and Eligibility.IsCraftedEquipment(itemKey)
+                            then
+                                craftedCount = craftedCount + 1
                             end
                         end
-                        if Eligibility.MatchesQualityFilter(entry.quality)
-                            and Eligibility.MatchesExpansionFilter(entry.expansionID)
-                            and Eligibility.IsCraftedEquipment(itemKey)
-                        then
-                            craftedCount = craftedCount + 1
-                        end
-                    end
 
-                    if not skipGuids[entry.guid] then
-                        if Eligibility.MatchesQualityFilter(entry.quality)
-                            and Eligibility.MatchesExpansionFilter(entry.expansionID)
-                            and passesCrafted
-                        then
-                            items[#items + 1] = entry
-                        else
-                            hiddenByFilters = hiddenByFilters + 1
+                        if not skipGuids[entry.guid] then
+                            if Eligibility.MatchesQualityFilter(entry.quality)
+                                and Eligibility.MatchesExpansionFilter(entry.expansionID)
+                                and passesCrafted
+                            then
+                                snapshotItems[#snapshotItems + 1] = entry
+                            else
+                                hiddenByFilters = hiddenByFilters + 1
+                            end
                         end
                     end
                 end
@@ -559,16 +620,15 @@ function Eligibility.CollectSnapshot(options)
         end
     end
 
-    pruneCandidateCache(Eligibility.IndexBagLocations())
+    pruneGuidCaches(locationsScratch)
 
-    return {
-        items = items,
-        qualityCounts = qualityCounts,
-        expansionCounts = expansionCounts,
-        currentExpansionCount = currentExpansionCount,
-        craftedCount = craftedCount,
-        hiddenByFilters = hiddenByFilters,
-    }
+    snapshotOut.items = snapshotItems
+    snapshotOut.qualityCounts = qualityCountsScratch
+    snapshotOut.expansionCounts = expansionCountsScratch
+    snapshotOut.currentExpansionCount = currentExpansionCount
+    snapshotOut.craftedCount = craftedCount
+    snapshotOut.hiddenByFilters = hiddenByFilters
+    return snapshotOut
 end
 
 local ORDER_KEYS = {

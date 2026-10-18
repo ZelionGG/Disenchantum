@@ -7,6 +7,7 @@ local L
 
 local DISENCHANT_SPELL_ID = addon.DISENCHANT_SPELL_ID
 local BUTTON_NAME = "DisenchantumSecureButton"
+local BINDING_COMMAND = "CLICK " .. BUTTON_NAME .. ":LeftButton"
 -- Only auto-loot the window that opens right after our DE, not world loot.
 local LOOT_PENDING_SECONDS = 2
 
@@ -16,6 +17,8 @@ local SecureDisenchant = {
     allowGcdFill = false,
     pendingLoot = false,
     pendingLootUntil = 0,
+    lootTaken = false,
+    pendingUiRefresh = false,
 }
 
 addon.SecureDisenchant = SecureDisenchant
@@ -60,12 +63,14 @@ function Session.Reset()
     end
 end
 
+local reagentsList = {}
+
 function Session.GetReagents()
-    local list = {}
+    wipe(reagentsList)
     for _, entry in pairs(Session.reagents) do
-        list[#list + 1] = entry
+        reagentsList[#reagentsList + 1] = entry
     end
-    table.sort(list, function(left, right)
+    table.sort(reagentsList, function(left, right)
         if left.count ~= right.count then
             return left.count > right.count
         end
@@ -76,7 +81,7 @@ function Session.GetReagents()
         end
         return leftName < rightName
     end)
-    return list
+    return reagentsList
 end
 
 function Session.RecordLootWindow()
@@ -187,6 +192,62 @@ function SecureDisenchant.UpdateVisual()
     end
 
     button:SetVisualEnabled(canUse)
+    SecureDisenchant.UpdateHotkey()
+end
+
+-- GetBindingText(key, 1) / a truthy 2nd arg abbreviates (a-s-Y). Do not pass "KEY_".
+local BINDING_MODIFIER_LABEL = {
+    ALT = "Alt",
+    LALT = "Left Alt",
+    RALT = "Right Alt",
+    SHIFT = "Shift",
+    LSHIFT = "Left Shift",
+    RSHIFT = "Right Shift",
+    CTRL = "Ctrl",
+    LCTRL = "Left Ctrl",
+    RCTRL = "Right Ctrl",
+}
+
+local function prettyBindingToken(token)
+    local upper = strupper(token)
+    local modifier = BINDING_MODIFIER_LABEL[upper]
+    if modifier then
+        return modifier
+    end
+    local named = _G["KEY_" .. upper]
+    if named and named ~= "" then
+        return named
+    end
+    return token
+end
+
+local function formatBindingLabel(key)
+    local parts = {}
+    for token in string.gmatch(key, "[^-]+") do
+        parts[#parts + 1] = prettyBindingToken(token)
+    end
+    if #parts == 0 then
+        return ""
+    end
+    return "(" .. table.concat(parts, " + ") .. ")"
+end
+
+function SecureDisenchant.UpdateHotkey()
+    local button = getButton()
+    if not button or not button.HotKey then
+        return
+    end
+
+    local key = GetBindingKey(BINDING_COMMAND)
+    local text = key and formatBindingLabel(key) or ""
+    if text == "" then
+        button.HotKey:SetText("")
+        button.HotKey:Hide()
+        return
+    end
+
+    button.HotKey:SetText(text)
+    button.HotKey:Show()
 end
 
 local function hideProgressFill(button)
@@ -313,6 +374,13 @@ function SecureDisenchant.EnsureButton(parent)
     button.Label:SetPoint("LEFT", button.Icon, "RIGHT", 10, 0)
     button.Label:SetJustifyH("LEFT")
 
+    -- Sibling of Content so the centered icon+label layout does not shift.
+    button.HotKey = Theme.CreateText(button, "", "label")
+    button.HotKey:SetDrawLayer("OVERLAY")
+    button.HotKey:SetJustifyH("RIGHT")
+    button.HotKey:SetPoint("TOPRIGHT", button, "TOPRIGHT", -8, -6)
+    button.HotKey:Hide()
+
     local function layoutContent()
         local textWidth = 0
         if button.Label.GetStringWidth then
@@ -331,6 +399,9 @@ function SecureDisenchant.EnsureButton(parent)
     end
 
     button:HookScript("OnMouseDown", function(self)
+        if self.visualEnabled == false or (self.IsEnabled and not self:IsEnabled()) then
+            return
+        end
         self.contentPressOffset = -1
         layoutContent()
     end)
@@ -396,6 +467,7 @@ function SecureDisenchant.OnCastSucceeded(spellID)
     SecureDisenchant.allowGcdFill = true
     SecureDisenchant.pendingLoot = true
     SecureDisenchant.pendingLootUntil = GetTime() + LOOT_PENDING_SECONDS
+    SecureDisenchant.lootTaken = false
     Session.lootRecorded = false
     Session.itemsDisenchanted = Session.itemsDisenchanted + 1
     if addon.MainWindow and addon.MainWindow.RefreshSession then
@@ -410,13 +482,33 @@ function SecureDisenchant.OnCastSucceeded(spellID)
     end
 end
 
+local function flushPendingUiRefresh()
+    if not SecureDisenchant.pendingUiRefresh then
+        return
+    end
+
+    SecureDisenchant.pendingUiRefresh = false
+    local window = addon.MainWindow
+    if window and window.frame and window.frame:IsShown() and window.Refresh then
+        window:Refresh()
+    end
+end
+
+local function clearPendingLoot()
+    SecureDisenchant.pendingLoot = false
+    SecureDisenchant.pendingLootUntil = 0
+    SecureDisenchant.lootTaken = false
+    Session.lootRecorded = false
+    flushPendingUiRefresh()
+end
+
 function SecureDisenchant.TryLoot()
     if not SecureDisenchant.pendingLoot then
         return
     end
 
     if GetTime() > (SecureDisenchant.pendingLootUntil or 0) then
-        SecureDisenchant.pendingLoot = false
+        clearPendingLoot()
         return
     end
 
@@ -426,16 +518,23 @@ function SecureDisenchant.TryLoot()
         return
     end
 
+    if SecureDisenchant.lootTaken then
+        return
+    end
+
     local slotCount = GetNumLootItems and GetNumLootItems() or 0
+    if slotCount <= 0 then
+        return
+    end
+
     for slotIndex = 1, slotCount do
         LootSlot(slotIndex)
     end
+    SecureDisenchant.lootTaken = true
 end
 
 function SecureDisenchant.OnLootClosed()
-    SecureDisenchant.pendingLoot = false
-    SecureDisenchant.pendingLootUntil = 0
-    Session.lootRecorded = false
+    clearPendingLoot()
 end
 
 function SecureDisenchant.OnLeaveCombat()
@@ -448,7 +547,20 @@ end
 
 Queue.OnChanged(function()
     SecureDisenchant.ApplyCurrent()
-    if addon.MainWindow and addon.MainWindow.frame and addon.MainWindow.frame:IsShown() then
-        addon.MainWindow:Refresh()
+    local window = addon.MainWindow
+    if not window or not window.frame or not window.frame:IsShown() then
+        return
     end
+    if SecureDisenchant.pendingLoot then
+        if window.RefreshQueueList then
+            window:RefreshQueueList()
+        end
+        if window.RefreshQueueCount then
+            window:RefreshQueueCount()
+        end
+        SecureDisenchant.UpdateVisual()
+        SecureDisenchant.pendingUiRefresh = true
+        return
+    end
+    window:Refresh()
 end)

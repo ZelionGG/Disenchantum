@@ -65,18 +65,25 @@ function Queue.IsQueued(guid)
     return false
 end
 
-function Queue.GetSkipGuids()
-    local skip = {}
+local skipGuidsScratch = {}
+
+function Queue.FillSkipGuids(dest)
+    dest = dest or skipGuidsScratch
+    wipe(dest)
     for index = 1, #Queue.entries do
         local guid = Queue.entries[index].guid
         if guid then
-            skip[guid] = true
+            dest[guid] = true
         end
     end
     for guid in pairs(Queue.consumedGuids) do
-        skip[guid] = true
+        dest[guid] = true
     end
-    return skip
+    return dest
+end
+
+function Queue.GetSkipGuids()
+    return Queue.FillSkipGuids({})
 end
 
 function Queue.MarkConsumed(guid)
@@ -254,9 +261,13 @@ end
 function Queue.AddAllMatching(options)
     options = options or {}
     local added = 0
-    local items = Eligibility.CollectSnapshot({
-        skipGuids = Queue.GetSkipGuids(),
+    local snapshotItems = Eligibility.CollectSnapshot({
+        skipGuids = Queue.FillSkipGuids(),
     }).items
+    local items = {}
+    for index = 1, #snapshotItems do
+        items[index] = snapshotItems[index]
+    end
     items = Eligibility.FilterItemsBySearch(items, options.search)
     local orderBy = "name"
     local groupBy = "none"
