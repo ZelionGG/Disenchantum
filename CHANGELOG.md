@@ -1,16 +1,16 @@
 # Disenchantum
 
-## [1.2](https://github.com/ZelionGG/Disenchantum/releases/tag/1.2) (2026-08-31)
+## [1.3](https://github.com/ZelionGG/Disenchantum/releases/tag/1.3) (2026-10-18)
 
-[Full Changelog](https://github.com/ZelionGG/Disenchantum/compare/1.1...1.2) [Previous Releases](https://github.com/ZelionGG/Disenchantum/releases)
+[Full Changelog](https://github.com/ZelionGG/Disenchantum/compare/1.2...1.3) [Previous Releases](https://github.com/ZelionGG/Disenchantum/releases)
 
-> **Version 1.2 - Recap knowledge, bag search, and crafted filter**
+> **Version 1.3 - Keybind on the button and a gradient name**
 >
-> Use profession knowledge from the session recap, search in the list by name or expansion, and crafted gear can now be excluded from the list.
+> The Disenchant keybind shows on the button, and the addon name fades from turquoise to violet.
 
-- 🆕 _**NEW** -_ Click a session recap chip that has a Use effect (such as profession knowledge) to use without searching in your bags.
-- 🆕 _**NEW** -_ Click the session recap +N chip to open the rest of the session recap.
-- 🆕 _**NEW** -_ Search Bags by name, item level, slot, bind, or expansion.
-- 🆕 _**NEW** -_ Exclude crafted gear from the list with a **Crafted** filter.
-- 🛠️ _**IMPROVEMENT** -_ The **Disenchant** button keeps icon and name centered so a click no longer jumps the label.
-- 🛠️ _**IMPROVEMENT** -_ Item tiles are more compact so more items fit in each list.
+- 🆕 _**NEW** -_ The **Disenchant** button shows its keybind. The binding has its own **Disenchantum** category in Key Bindings.
+- 🆕 _**NEW** -_ The addon name fades from turquoise to violet in the window title, on the minimap button, in the addon compartment, and on the professions tab.
+- 🛠️ _**IMPROVEMENT** -_ The lists wait until loot finishes before refreshing, so a disenchant pass stays smoother.
+- 🐞 _**BUGFIX** -_ The minimap and compartment tooltip is visible again.
+- 🐞 _**BUGFIX** -_ A disabled **Disenchant** button no longer shifts its label on click.
+- 🐞 _**BUGFIX** -_ Blacklist rows show the crafted hammer after the item name.
